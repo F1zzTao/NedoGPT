@@ -13,7 +13,7 @@ bot = Bot(os.environ["VK_API_KEY"])
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 cooldown = 0
 
-SYSTEM_MSG = "You are an assistant. Answer in russian language."
+SYSTEM_MSG = "You are an assistant. Answer in user's language."
 
 
 def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:
@@ -22,25 +22,24 @@ def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:
     return num_tokens
 
 
-@bot.on.message(text='!ai <question>')
-async def ai_txt(message: Message, question: str):
-    global cooldown
-    if cooldown + 8 > time.time():
-        return "КулДаун!"
+def create_response(question: str, model: str = "gpt-3.5-turbo") -> str:
+    response = client.chat.completions.create(
+        model=model,
+        max_tokens=1000,
+        messages=[
+            {"role": "system", "content": SYSTEM_MSG},
+            {"role": "user", "content": question}
+        ]
+    )
 
-    if message.reply_message is not None:
-        question = f'[User answered to this message: "{message.reply_message}"] {question}'
+    return response.choices[0].message.content
 
-    if num_tokens_from_string(question) > 100:
-        return "В сообщении более 100 токенов! Используйте меньше слов."
 
-    try:
-        moderation = client.moderations.create(input=question)
-        is_flagged = moderation.results[0].flagged
-        moderation_dict = moderation.model_dump()
-        categories_dict = moderation_dict['results'][0]['categories']
-    except Exception as e:
-        return f"Произошла ошибка во время модерации текста: {e}\n{moderation}"
+def is_flagged(question: str) -> tuple:
+    moderation = client.moderations.create(input=question)
+    is_flagged = moderation.results[0].flagged
+    moderation_dict = moderation.model_dump()
+    categories_dict = moderation_dict['results'][0]['categories']
 
     if is_flagged:
         flagged = []
@@ -49,24 +48,55 @@ async def ai_txt(message: Message, question: str):
             if is_flagged:
                 flagged.append(category)
 
+        return (True, ', '.join(flagged))
+    return (False, '')
+
+
+@bot.on.message(text=('!ai <question_user>', '!gpt3 <question_user>'))
+async def ai_txt(message: Message, question_user: str):
+    global cooldown
+    if cooldown + 8 > time.time():
+        return "КулДаун!"
+
+    try:
+        user = await message.get_user()
+        question = f"[User's full name: \"{user.first_name} {user.last_name}\"] "
+    except Exception as e:
+        logger.error(f"Couldn't add user's name (group?): {e}")
+        question = ""
+
+    if message.reply_message is not None:
+        try:
+            reply_user = await bot.api.users.get(user_ids=message.reply_message.from_id)
+            full_name = f' (Reply user full name: "{reply_user[0].first_name} {reply_user[0].last_name}")'
+        except Exception as e:
+            logger.error(f"Couldn't add reply user's name (group?): {e}")
+            full_name = ""
+        question += f'[User answered to this message{full_name}: "{message.reply_message.text}"] '
+
+    question += question_user
+    num_tokens = num_tokens_from_string(question)
+    if num_tokens > 500:
+        return f"В сообщении более 500 токенов ({num_tokens})! Используйте меньше слов."
+
+    try:
+        flagged = is_flagged(question)
+    except Exception as e:
+        return f"Произошла ошибка во время модерации текста: {e}"
+
+    if flagged[0] is True:
         return (
             "Лил бро попытался забанить меня, но у него ничего не получилось :(\n"
-            f"Запрос нарушает правила OpenAI: {', '.join(flagged)}"
+            f"Запрос нарушает правила OpenAI: {flagged[1]}"
         )
 
     cooldown = time.time()
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": SYSTEM_MSG},
-                {"role": "user", "content": question}
-            ]
-        )
+        ai_response = create_response(question)
     except Exception as e:
         return f"Чет пошло не так: {e}"
 
-    return response.choices[0].message.content
+    return ai_response
 
 
 if __name__ == "__main__":
