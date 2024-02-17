@@ -14,6 +14,8 @@ client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 cooldown = 0
 
 SYSTEM_MSG = "You are an assistant. Answer in user's language."
+SYSTEM_EMOJI = "⚙️"
+AI_EMOJI = "🤖"
 
 
 def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:
@@ -32,7 +34,7 @@ def create_response(question: str, model: str = "gpt-3.5-turbo") -> str:
         ]
     )
 
-    return response.choices[0].message.content
+    return f"{AI_EMOJI} {response.choices[0].message.content}"
 
 
 def is_flagged(question: str) -> tuple:
@@ -52,11 +54,23 @@ def is_flagged(question: str) -> tuple:
     return (False, '')
 
 
+@bot.on.message(text="!aihelp")
+async def ai_help(message: Message):
+    return (
+        f"{SYSTEM_EMOJI} !ai <запрос> - запрос к боту (gpt-3.5-turbo)"
+        "\n\nПри использовании этой команды, gpt получает ваш запрос и ваше имя и фамилию (соответственно, разрешая отправлять эти данные компании OpenAI)."
+        "\n\nЕсли использовать эту команду, ответив на сообщение другого пользователя, то gpt получает ваш запрос, ваше имя и фамилию, текст сообщения в ответе и имя и фамилию пользователя в ответе."
+    )
+
+
 @bot.on.message(text=('!ai <question_user>', '!gpt3 <question_user>'))
 async def ai_txt(message: Message, question_user: str):
     global cooldown
     if cooldown + 8 > time.time():
-        return "КулДаун!"
+        return f"{SYSTEM_EMOJI} КулДаун!"
+
+    if len(question_user) < 5:
+        return f"{SYSTEM_EMOJI} В запросе должно быть больше 5 букв!"
 
     try:
         user = await message.get_user()
@@ -77,16 +91,16 @@ async def ai_txt(message: Message, question_user: str):
     question += question_user
     num_tokens = num_tokens_from_string(question)
     if num_tokens > 500:
-        return f"В сообщении более 500 токенов ({num_tokens})! Используйте меньше слов."
+        return f"{SYSTEM_EMOJI} В сообщении более 500 токенов ({num_tokens})! Используйте меньше слов."
 
     try:
         flagged = is_flagged(question)
     except Exception as e:
-        return f"Произошла ошибка во время модерации текста: {e}"
+        return f"{SYSTEM_EMOJI} Произошла ошибка во время модерации текста: {e}"
 
     if flagged[0] is True:
         return (
-            "Лил бро попытался забанить меня, но у него ничего не получилось :(\n"
+            f"{SYSTEM_EMOJI} Лил бро попытался забанить меня, но у него ничего не получилось :(\n"
             f"Запрос нарушает правила OpenAI: {flagged[1]}"
         )
 
@@ -94,7 +108,7 @@ async def ai_txt(message: Message, question_user: str):
     try:
         ai_response = create_response(question)
     except Exception as e:
-        return f"Чет пошло не так: {e}"
+        return f"{SYSTEM_EMOJI} Чет пошло не так: {e}"
 
     return ai_response
 
