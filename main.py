@@ -6,6 +6,7 @@ from loguru import logger
 from openai import OpenAI
 from vkbottle.bot import Bot, Message
 from dotenv import load_dotenv
+from vkbottle_types.objects import MessagesMessageAttachmentType, PhotosPhotoSizes
 
 load_dotenv()
 
@@ -16,6 +17,8 @@ cooldown = 0
 SYSTEM_MSG = "You are an assistant. Answer in user's language."
 SYSTEM_EMOJI = "⚙️"
 AI_EMOJI = "🤖"
+MAX_WIDTH = 750
+BAN_WORDS = ("hitler", "гитлер", "gitler", "ниггер")
 
 
 def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:
@@ -24,15 +27,38 @@ def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:
     return num_tokens
 
 
-def create_response(question: str, model: str = "gpt-3.5-turbo") -> str:
-    response = client.chat.completions.create(
-        model=model,
-        max_tokens=1000,
-        messages=[
-            {"role": "system", "content": SYSTEM_MSG},
-            {"role": "user", "content": question}
-        ]
-    )
+def create_response(question: str, img: str = None, model: str = "gpt-3.5-turbo") -> str:
+    if img is not None:
+        if model != "gpt-4-vision-preview":
+            raise ValueError("Only \"gpt-4-vision-preview\" model can understand images")
+        response = client.chat.completions.create(
+            model=model,
+            max_tokens=300,
+            messages=[
+                {"role": "system", "content": SYSTEM_MSG},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": question},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": img,
+                            },
+                        },
+                    ],
+                }
+            ],
+        )
+    else:
+        response = client.chat.completions.create(
+            model=model,
+            max_tokens=1000,
+            messages=[
+                {"role": "system", "content": SYSTEM_MSG},
+                {"role": "user", "content": question}
+            ]
+        )
 
     return f"{AI_EMOJI} {response.choices[0].message.content}"
 
@@ -54,6 +80,23 @@ def is_flagged(question: str) -> tuple:
     return (False, '')
 
 
+def pick_img(sizes: list[PhotosPhotoSizes]) -> str:
+    sizes_widths = [photo.width for photo in sizes]
+    filtered_sizes = [size for size in sizes_widths if size <= MAX_WIDTH]
+
+    if not filtered_sizes:
+        closest_size = min(sizes_widths, key=lambda x: abs(x - MAX_WIDTH))
+    else:
+        closest_size = max(filtered_sizes)
+
+    for photo in sizes:
+        if photo.width == closest_size:
+            photo_url = photo.url
+            break
+
+    return photo_url
+
+
 @bot.on.message(text="!aihelp")
 async def ai_help(message: Message):
     return (
@@ -71,6 +114,15 @@ async def ai_txt(message: Message, question_user: str):
 
     if len(question_user) < 5:
         return f"{SYSTEM_EMOJI} В запросе должно быть больше 5 букв!"
+
+    img_url = None
+    if (
+        message.attachments and
+        message.attachments[0].type is MessagesMessageAttachmentType.PHOTO
+    ):
+        if message.from_id != 322615766:
+            return f"{SYSTEM_EMOJI} Неа!"
+        img_url = pick_img(message.attachments[0].photo.sizes)
 
     try:
         user = await message.get_user()
@@ -93,6 +145,9 @@ async def ai_txt(message: Message, question_user: str):
     if num_tokens > 500:
         return f"{SYSTEM_EMOJI} В сообщении более 500 токенов ({num_tokens})! Используйте меньше слов."
 
+    if any(ban_word in question.lower() for ban_word in BAN_WORDS):
+        return f"{SYSTEM_EMOJI} Попробуй поговорить о чем-то другом. Поможет в развитии."
+
     try:
         flagged = is_flagged(question)
     except Exception as e:
@@ -106,7 +161,10 @@ async def ai_txt(message: Message, question_user: str):
 
     cooldown = time.time()
     try:
-        ai_response = create_response(question)
+        if img_url is not None:
+            ai_response = create_response(question, img_url, "gpt-4-vision-preview")
+        else:
+            ai_response = create_response(question)
     except Exception as e:
         return f"{SYSTEM_EMOJI} Чет пошло не так: {e}"
 
