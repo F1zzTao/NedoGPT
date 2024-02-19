@@ -1,4 +1,5 @@
 import time
+import re
 import os
 
 import tiktoken
@@ -14,11 +15,13 @@ bot = Bot(os.environ["VK_API_KEY"])
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 cooldown = 0
 
-SYSTEM_MSG = "You are an assistant. Answer in user's language."
+SYSTEM_MSG = "You are an assistant in a group chat. Answer in user's language. Never include links in your answers (anything that's separated by a period without spaces, like fizz.buzz, my.site, etc.)"
 SYSTEM_EMOJI = "⚙️"
 AI_EMOJI = "🤖"
 MAX_WIDTH = 750
-BAN_WORDS = ("hitler", "гитлер", "gitler", "ниггер")
+BAN_WORDS = ("hitler", "гитлер", "gitler", "ниггер", "негр", "vto.pe", "vtope")
+AI_BAN_WORDS = ("синий кит", "сова никогда не спит",)
+CENSOR_WORDS = ("onion", "hitler", "vtope", "vto.pe", "vto pe")
 
 
 def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:
@@ -103,6 +106,7 @@ async def ai_help(message: Message):
         f"{SYSTEM_EMOJI} !ai <запрос> - запрос к боту (gpt-3.5-turbo)"
         "\n\nПри использовании этой команды, gpt получает ваш запрос и ваше имя и фамилию (соответственно, разрешая отправлять эти данные компании OpenAI)."
         "\n\nЕсли использовать эту команду, ответив на сообщение другого пользователя, то gpt получает ваш запрос, ваше имя и фамилию, текст сообщения в ответе и имя и фамилию пользователя в ответе."
+        "\n\nПриложив картинку к сообщению, бот будет использовать gpt-4-vision-preview, чтобы распознать её (только для избранных)."
     )
 
 
@@ -123,10 +127,18 @@ async def ai_txt(message: Message, question_user: str):
         if message.from_id != 322615766:
             return f"{SYSTEM_EMOJI} Неа!"
         img_url = pick_img(message.attachments[0].photo.sizes)
+    elif (
+        message.reply_message and
+        message.reply_message.attachments and
+        message.reply_message.attachments[0].type is MessagesMessageAttachmentType.PHOTO
+    ):
+        if message.from_id != 322615766:
+            return f"{SYSTEM_EMOJI} Неа!"
+        img_url = pick_img(message.reply_message.attachments[0].photo.sizes)
 
     try:
         user = await message.get_user()
-        question = f"[User's full name: \"{user.first_name} {user.last_name}\"] "
+        question = f"{user.first_name} {user.last_name} "
     except Exception as e:
         logger.error(f"Couldn't add user's name (group?): {e}")
         question = ""
@@ -140,7 +152,7 @@ async def ai_txt(message: Message, question_user: str):
             full_name = ""
         question += f'[User answered to this message{full_name}: "{message.reply_message.text}"] '
 
-    question += question_user
+    question += ': ' + question_user
     num_tokens = num_tokens_from_string(question)
     if num_tokens > 500:
         return f"{SYSTEM_EMOJI} В сообщении более 500 токенов ({num_tokens})! Используйте меньше слов."
@@ -167,6 +179,14 @@ async def ai_txt(message: Message, question_user: str):
             ai_response = create_response(question)
     except Exception as e:
         return f"{SYSTEM_EMOJI} Чет пошло не так: {e}"
+
+    logger.info(ai_response)
+
+    if any(ban_word in ai_response.lower() for ban_word in AI_BAN_WORDS) or re.search(r"[a-zA-Zа-яА-Я]\.[a-zA-Zа-яА-Я]", ai_response):
+        return f"{SYSTEM_EMOJI} В результате оказалось слово из черного списка. Спасибо, что потратил мои 0.0020 центов."
+
+    for censor in CENSOR_WORDS:
+        ai_response = ai_response.replace(censor, "***")
 
     return ai_response
 
