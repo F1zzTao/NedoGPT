@@ -79,7 +79,8 @@ async def process_query(message: Message, query_user: str) -> tuple[str, list[di
     if message.reply_message is not None:
         role = "user"
         reply_text = message.reply_message.text
-        if str(message.reply_message.from_id) == "-"+group_id:
+        is_main_group = str(message.reply_message.from_id) == "-"+group_id
+        if is_main_group:
             reply_text = reply_text.replace(AI_EMOJI+" ", "")
             role = "assistant"
         reply_msg = {"role": role, "content": ""}
@@ -89,7 +90,8 @@ async def process_query(message: Message, query_user: str) -> tuple[str, list[di
             reply_msg["content"] = f"{reply_user[0].first_name} {reply_user[0].last_name}: "
         except Exception as e:
             logger.error(f"Couldn't add reply user name (group?): {e}")
-            reply_msg["content"] = "[Anonymous]: "
+            if not is_main_group:
+                reply_msg["content"] = "[Anonymous]: "
         reply_msg["content"] += reply_text
         messages.append(reply_msg)
 
