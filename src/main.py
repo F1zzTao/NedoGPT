@@ -2,9 +2,11 @@ import os
 import re
 import time
 
+import rich
 from dotenv import load_dotenv
 from loguru import logger
 from openai import OpenAI
+from vkbottle import BaseMiddleware
 from vkbottle.bot import Bot, Message
 from vkbottle_types.objects import (
     MessagesMessageAttachmentType,
@@ -29,6 +31,21 @@ bot = Bot(os.environ["VK_API_KEY"])
 group_id = os.environ["VK_GROUP_ID"]
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 cooldown = 0
+
+msg_history: dict = {}
+
+
+class HistoryMiddleware(BaseMiddleware[Message]):
+    async def pre(self):
+        if not self.event.text:
+            return
+
+        query = await process_query(self.event, self.event.text, add_system=False)
+        if msg_history.get(self.event.peer_id) is None:
+            msg_history[self.event.peer_id] = [query[1][0]]
+        else:
+            msg_history[self.event.peer_id].append(query[1][0])
+        rich.print(msg_history)
 
 
 def pick_size(sizes: list[PhotosPhotoSizes]) -> str:
@@ -68,13 +85,18 @@ def pick_img(message: Message) -> str | None:
     return img_url
 
 
-async def process_query(message: Message, query_user: str) -> tuple[str, list[dict]]:
+async def process_query(
+    message: Message, query_user: str, add_system: bool = True
+) -> tuple[str, list[dict]]:
     """
     Returns a tuple of raw messages (for moderation) and messages
     """
-    messages = [
-        {"role": "system", "content": SYSTEM_MSG},
-    ]
+    if add_system:
+        messages = [
+            {"role": "system", "content": SYSTEM_MSG},
+        ]
+    else:
+        messages = []
 
     if message.reply_message is not None:
         role = "user"
@@ -136,12 +158,25 @@ def moderate_query(client: OpenAI, query: str) -> str | None:
 
 
 @bot.on.message(text="!aihelp")
-async def ai_help(_: Message):
+async def ai_help_handler(_: Message):
     return HELP_MSG
 
 
+@bot.on.message(text=("!tokenize", "!tokenize <query>"))
+async def count_tokens_handler(message: Message, query: str | None = None):
+    if query is None:
+        if message.reply_message is None:
+            return f"{SYSTEM_EMOJI} Эээ... А что токенизировать то?"
+        num_tokens = ai_stuff.num_tokens_from_string(message.reply_message.text)
+    else:
+        num_tokens = ai_stuff.num_tokens_from_string(query)
+
+    ending = ('' if num_tokens == 1 else 'а' if num_tokens < 5 else 'ов')
+    return f"{SYSTEM_EMOJI} В сообщении {num_tokens} токен{ending}!"
+
+
 @bot.on.message(text=('!ai <query_user>', '!gpt3 <query_user>'))
-async def ai_txt(message: Message, query_user: str):
+async def ai_txt_handler(message: Message, query_user: str):
     global cooldown
     if cooldown + 8 > time.time():
         return f"{SYSTEM_EMOJI} КулДаун!"
@@ -188,6 +223,18 @@ async def ai_txt(message: Message, query_user: str):
     return ai_response
 
 
+@bot.on.message(text=("!aitldr <messages_num:int> <query>", "!aitldr <query>"))
+async def ai_tldr_handler(message: Message, query: str, messages_num: int | None = None):
+    messages_num = messages_num or 200
+    if messages_num > 200:
+        return f"{SYSTEM_EMOJI} Вы выбрали слишком много сообщений (макс. 200)!"
+
+    rich.print(msg_history)
+
+    return f"{SYSTEM_EMOJI} абобус"
+
+
 if __name__ == "__main__":
     logger.info("Starting bot...")
+    bot.labeler.message_view.register_middleware(HistoryMiddleware)
     bot.run_forever()
