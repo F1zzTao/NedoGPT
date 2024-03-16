@@ -1,9 +1,3 @@
-SYSTEM_MSG = (
-    "You are an assistant in a group chat. Answer in user's language. Never include"
-    " links in your answers (anything that's separated by a period without spaces,"
-    " like fizz.buzz, my.site, etc.)"
-)
-
 SYSTEM_EMOJI = "⚙️"
 AI_EMOJI = "🤖"
 
@@ -18,8 +12,11 @@ HELP_MSG = (
     " чтобы распознать её (только для избранных)."
 )
 
-MAX_WIDTH = 750
+MAX_IMAGE_WIDTH = 750
 
 BAN_WORDS = ("hitler", "гитлер", "gitler", "ниггер", "негр", "vto.pe", "vtope",)
 AI_BAN_WORDS = ("синий кит", "сова никогда не спит",)
 CENSOR_WORDS = ("onion", "hitler", "vtope", "vto.pe", "vto pe",)
+
+DB_PATH = "./db.db"
+MOODS_PATH = "./moods.json"
