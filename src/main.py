@@ -2,7 +2,6 @@ import os
 import re
 import time
 
-import rich
 from dotenv import load_dotenv
 from loguru import logger
 from openai import OpenAI
@@ -45,7 +44,6 @@ class HistoryMiddleware(BaseMiddleware[Message]):
             msg_history[self.event.peer_id] = [query[1][0]]
         else:
             msg_history[self.event.peer_id].append(query[1][0])
-        rich.print(msg_history)
 
 
 def pick_size(sizes: list[PhotosPhotoSizes]) -> str:
@@ -137,9 +135,10 @@ async def process_query(
 
 def moderate_query(client: OpenAI, query: str) -> str | None:
     num_tokens = ai_stuff.num_tokens_from_string(query)
-    if num_tokens > 500:
+    if num_tokens > 4000:
         return (
-            f"{SYSTEM_EMOJI} В сообщении более 500 токенов ({num_tokens})! Используйте меньше слов."
+            f"{SYSTEM_EMOJI} В сообщении более 4000"
+            " токенов ({num_tokens})! Используйте меньше слов."
         )
 
     if any(ban_word in query.lower() for ban_word in BAN_WORDS):
@@ -172,14 +171,16 @@ async def count_tokens_handler(message: Message, query: str | None = None):
         num_tokens = ai_stuff.num_tokens_from_string(query)
 
     ending = ('' if num_tokens == 1 else 'а' if num_tokens < 5 else 'ов')
-    return f"{SYSTEM_EMOJI} В сообщении {num_tokens} токен{ending}!"
+    cost = num_tokens/1000*0.0015
+    cost_rounded = "{:.5f}".format(cost)
+    return f"{SYSTEM_EMOJI} В сообщении {num_tokens} токен{ending} (${cost_rounded})!"
 
 
 @bot.on.message(text=('!ai <query_user>', '!gpt3 <query_user>'))
 async def ai_txt_handler(message: Message, query_user: str):
     global cooldown
     if cooldown + 8 > time.time():
-        return f"{SYSTEM_EMOJI} КулДаун!"
+        return f"{SYSTEM_EMOJI} Кул(ты)Даун!"
 
     if len(query_user) < 5:
         return f"{SYSTEM_EMOJI} В запросе должно быть больше 5 букв!"
@@ -223,15 +224,50 @@ async def ai_txt_handler(message: Message, query_user: str):
     return ai_response
 
 
-@bot.on.message(text=("!aitldr <messages_num:int> <query>", "!aitldr <query>"))
-async def ai_tldr_handler(message: Message, query: str, messages_num: int | None = None):
+@bot.on.message(text=("!aitldr <messages_num:int> <query_user>", "!aitldr <query_user>"))
+async def ai_tldr_handler(message: Message, query_user: str, messages_num: int | None = None):
+    global cooldown
+    if cooldown + 8 > time.time():
+        return f"{SYSTEM_EMOJI} Кул(ты)Даун!"
+
     messages_num = messages_num or 200
     if messages_num > 200:
         return f"{SYSTEM_EMOJI} Вы выбрали слишком много сообщений (макс. 200)!"
 
-    rich.print(msg_history)
+    if len(query_user) < 5:
+        return f"{SYSTEM_EMOJI} В запросе должно быть больше 5 букв!"
 
-    return f"{SYSTEM_EMOJI} абобус"
+    query = msg_history[message.peer_id][-messages_num:1].copy()
+
+    history_text = ""
+    for i in query:
+        history_text += i["content"]+"\n"
+
+    fail_reason = moderate_query(client, history_text)
+    if fail_reason is not None:
+        return fail_reason
+
+    cooldown = time.time()
+    try:
+        ai_response = ai_stuff.create_response(client, query)
+    except Exception as e:
+        return f"{SYSTEM_EMOJI} Чет пошло не так: {e}"
+
+    logger.info(ai_response)
+
+    if (
+        any(ban_word in ai_response.lower() for ban_word in AI_BAN_WORDS) or
+        re.search(r"[a-zA-Zа-яА-Я]\.[a-zA-Zа-яА-Я]", ai_response)
+    ):
+        return (
+            f"{SYSTEM_EMOJI} В результате оказалось слово из черного списка."
+            " Спасибо, что потратил мои 0.002 центов."
+        )
+
+    for censor in CENSOR_WORDS:
+        ai_response = ai_response.replace(censor, "***")
+
+    return ai_response
 
 
 if __name__ == "__main__":

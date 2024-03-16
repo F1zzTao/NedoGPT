@@ -11,7 +11,7 @@ def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:
 
 
 def create_response(
-    client: OpenAI, query: list[dict], img: str = None, model: str = "gpt-3.5-turbo"
+    client: OpenAI, query: list[dict], img: str | None = None, model: str = "gpt-3.5-turbo"
 ) -> str:
     if img is not None:
         # Not possible due to changes in gpt4 format
@@ -44,7 +44,7 @@ def create_response(
         response = client.chat.completions.create(
             model=model,
             max_tokens=1000,
-            messages=query
+            messages=query,
         )
 
     return f"{AI_EMOJI} {response.choices[0].message.content}"
