@@ -2,11 +2,13 @@ import aiosqlite
 
 from config import DB_PATH
 
-SQL_USERS_TABLE_QUERY = '''CREATE TABLE IF NOT EXISTS users (
+DEFAULT_CUSTOM_MOOD = "You're a helpful assistant. Speak user's language"
+SQL_USERS_TABLE_QUERY = f'''CREATE TABLE IF NOT EXISTS users (
                             id INT PRIMARY KEY,
                             user_id INT NOT NULL,
                             peer_id INT NOT NULL,
-                            ai_mood TEXT NOT NULL DEFAULT 'assistant'
+                            ai_mood INT NOT NULL DEFAULT 1,
+                            custom_mood TEXT NOT NULL DEFAULT "{DEFAULT_CUSTOM_MOOD}"
                         );'''
 SQL_NEW_USER_QUERY = '''INSERT INTO users (user_id, peer_id)
                         VALUES (?,?);'''

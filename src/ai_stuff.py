@@ -1,5 +1,5 @@
 import tiktoken
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from config import AI_EMOJI
 
@@ -10,8 +10,8 @@ def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:
     return num_tokens
 
 
-def create_response(
-    client: OpenAI, query: list[dict], img: str | None = None, model: str = "gpt-3.5-turbo"
+async def create_response(
+    client: AsyncOpenAI, query: list[dict], img: str | None = None, model: str = "gpt-3.5-turbo"
 ) -> str:
     if img is not None:
         # Not possible due to changes in gpt4 format
@@ -41,7 +41,7 @@ def create_response(
         """
         raise NotImplementedError("Adding images isn't possible right now")
     else:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model=model,
             max_tokens=1000,
             messages=query,
@@ -50,8 +50,8 @@ def create_response(
     return f"{AI_EMOJI} {response.choices[0].message.content}"
 
 
-def is_flagged(client: OpenAI, question: str) -> tuple:
-    moderation = client.moderations.create(input=question)
+async def is_flagged(client: AsyncOpenAI, question: str) -> tuple:
+    moderation = await client.moderations.create(input=question)
     is_flagged = moderation.results[0].flagged
     moderation_dict = moderation.model_dump()
     categories_dict = moderation_dict['results'][0]['categories']

@@ -1,6 +1,6 @@
 import aiofiles
 import msgspec
-from openai import OpenAI
+from openai import AsyncOpenAI
 from vkbottle.bot import Message
 from vkbottle_types.objects import (
     MessagesMessageAttachmentType,
@@ -48,7 +48,7 @@ def pick_img(message: Message) -> str | None:
     return img_url
 
 
-def moderate_query(client: OpenAI, query: str) -> str | None:
+async def moderate_query(client: AsyncOpenAI, query: str) -> str | None:
     num_tokens = ai_stuff.num_tokens_from_string(query)
     if num_tokens > 4000:
         return (
@@ -60,7 +60,7 @@ def moderate_query(client: OpenAI, query: str) -> str | None:
         return f"{SYSTEM_EMOJI} Попробуй поговорить о чем-то другом. Поможет в развитии."
 
     try:
-        flagged = ai_stuff.is_flagged(client, query)
+        flagged = await ai_stuff.is_flagged(client, query)
     except Exception as e:
         return f"{SYSTEM_EMOJI} Произошла ошибка во время модерации текста: {e}"
 

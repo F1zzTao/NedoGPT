@@ -1,11 +1,12 @@
+from datetime import datetime
 import os
 import re
 import time
 
 from dotenv import load_dotenv
 from loguru import logger
-from openai import OpenAI
-from vkbottle import BaseMiddleware
+from openai import AsyncOpenAI
+from vkbottle import BaseMiddleware, Keyboard, Text
 from vkbottle.bot import Bot, Message
 
 import ai_stuff
@@ -32,10 +33,10 @@ load_dotenv()
 bot = Bot(os.environ["VK_API_KEY"])
 bot.labeler.vbml_ignore_case = True  # type: ignore
 group_id = os.environ["VK_GROUP_ID"]
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-cooldown = 0
+client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 msg_history: dict = {}
+waiting_line = []
 
 
 class HistoryMiddleware(BaseMiddleware[Message]):
@@ -43,33 +44,24 @@ class HistoryMiddleware(BaseMiddleware[Message]):
         if not self.event.text:
             return
 
-        query = await process_query(self.event, self.event.text, add_system=False)
-        if msg_history.get(self.event.peer_id) is None:
-            msg_history[self.event.peer_id] = [query[1][0]]
+        full_name = None
+        try:
+            user_info = await bot.api.users.get(user_ids=[self.event.from_id])
+            full_name = f"{user_info[0].first_name} {user_info[0].last_name}"
+        except IndexError:
+            logger.info(f"Couldn't add group message")
+        except Exception as e:
+            logger.error(f"Couldn't add user message: {e}")
+        finally:
+            if not full_name:
+                full_name = "Anonymous"
+
+        query = f"{full_name}: {self.event.text}"
+
+        if msg_history.get(self.event.peer_id):
+            msg_history[self.event.peer_id].append(query)
         else:
-            msg_history[self.event.peer_id].append(query[1][0])
-
-
-"""
-class AccountMiddleware(BaseMiddleware[Message]):
-    async def post(self):
-        if not self.handlers:
-            # User didn't use any commands
-            return
-
-        from_id = self.event.from_id
-        peer_id = self.event.peer_id
-
-        if from_id < 0:
-            # Groups can't have an account
-            return
-
-        if (await is_registered(from_id, peer_id)):
-            # Person is already registered
-            return
-
-        await create_account(from_id, peer_id)
-"""
+            msg_history[self.event.peer_id] = [query]
 
 
 async def process_query(
@@ -86,12 +78,22 @@ async def process_query(
         else:
             mood_id = int(mood_id_str)
 
-        selected_mood = await get_mood_by_id(mood_id)
-        if selected_mood is None:
-            raise ValueError(f"Unknown mood id: {mood_id}")
+        instructions = None
+        if mood_id == 0:
+            instructions = await get_value(message.from_id, message.peer_id, "custom_mood")
+        else:
+            selected_mood = await get_mood_by_id(mood_id)
+            if selected_mood is None:
+                raise ValueError(f"Unknown mood id: {mood_id}")
+            instructions = selected_mood["instructions"]
+
+        current_date = datetime.now()
+        current_date_strf = current_date.strftime("%Y/%m/%d - %H:%M:%S")
+
+        year_msg = f"\nCurrent time and date: {current_date_strf} (year/month/day), the timezone is GMT+2"
 
         messages = [
-            {"role": "system", "content": selected_mood["instructions"]},
+            {"role": "system", "content": instructions+year_msg},
         ]
     else:
         messages = []
@@ -155,20 +157,20 @@ async def count_tokens_handler(message: Message, query: str | None = None):
 
 @bot.on.message(text=('!ai <query_user>', '!gpt3 <query_user>'))
 async def ai_txt_handler(message: Message, query_user: str):
-    global cooldown
-    if cooldown + 8 > time.time():
-        return f"{SYSTEM_EMOJI} Кул(ты)Даун!"
+    global waiting_line
+    if message.from_id in waiting_line:
+        return "Вы уже в очереди, пожалуйста, подождите."
 
     if len(query_user) < 5:
         return f"{SYSTEM_EMOJI} В запросе должно быть больше 5 букв!"
 
     img_url = pick_img(message)
     query = await process_query(message, query_user)
-    fail_reason = moderate_query(client, query[0])
-    if fail_reason is not None:
+    fail_reason = await moderate_query(client, query[0])
+    if fail_reason:
         return fail_reason
 
-    cooldown = time.time()
+    waiting_line.append(message.from_id)
     try:
         if img_url is not None:
             if message.from_id != 322615766:
@@ -182,9 +184,11 @@ async def ai_txt_handler(message: Message, query_user: str):
             """
             return f"{SYSTEM_EMOJI} Пока прикреплять картинки нельзя!"
         else:
-            ai_response = ai_stuff.create_response(client, query[1])
+            ai_response = await ai_stuff.create_response(client, query[1])
     except Exception as e:
         return f"{SYSTEM_EMOJI} Чет пошло не так: {e}"
+    finally:
+        waiting_line.remove(message.from_id)
 
     logger.info(ai_response)
 
@@ -200,35 +204,54 @@ async def ai_txt_handler(message: Message, query_user: str):
     for censor in CENSOR_WORDS:
         ai_response = ai_response.replace(censor, "***")
 
-    return ai_response
+    await message.reply(ai_response)
 
 
 @bot.on.message(text=("!aitldr <messages_num:int> <query_user>", "!aitldr <query_user>"))
 async def ai_tldr_handler(message: Message, query_user: str, messages_num: int | None = None):
-    global cooldown
-    if cooldown + 8 > time.time():
-        return f"{SYSTEM_EMOJI} Кул(ты)Даун!"
-
-    messages_num = messages_num or 200
+    messages_num = messages_num or 50
     if messages_num > 200:
         return f"{SYSTEM_EMOJI} Вы выбрали слишком много сообщений (макс. 200)!"
 
     if len(query_user) < 5:
         return f"{SYSTEM_EMOJI} В запросе должно быть больше 5 букв!"
 
-    query = msg_history[message.peer_id][-messages_num:1].copy()
+    conv_history: list = msg_history[message.peer_id][-messages_num:].copy()
 
-    history_text = ""
-    for i in query:
-        history_text += i["content"]+"\n"
-
-    fail_reason = moderate_query(client, history_text)
-    if fail_reason is not None:
+    str_conv_history: str = "\n".join(conv_history)
+    fail_reason = await moderate_query(client, str_conv_history)
+    if fail_reason:
         return fail_reason
 
-    cooldown = time.time()
+    mood_id_str = await get_value(message.from_id, message.peer_id, "ai_mood")
+    if mood_id_str is None:
+        logger.info("User mood id not found, defaulting to normal")
+        mood_id = 1
+    else:
+        mood_id = int(mood_id_str)
+
+    instructions = None
+    if mood_id == 0:
+        instructions = await get_value(message.from_id, message.peer_id, "custom_mood")
+    else:
+        selected_mood = await get_mood_by_id(mood_id)
+        if selected_mood is None:
+            raise ValueError(f"Unknown mood id: {mood_id}")
+        instructions = selected_mood["instructions"]
+
+    query = [
+        {"role": "system", "content": instructions},
+        {
+            "role": "user",
+            "content": (
+                "Below is a conversation between users in a group chat:"
+                f"\n'''\n{str_conv_history}\n'''\nAnswer the person in the last message in Russian."
+            )
+        }
+    ]
+
     try:
-        ai_response = ai_stuff.create_response(client, query)
+        ai_response = await ai_stuff.create_response(client, query)
     except Exception as e:
         return f"{SYSTEM_EMOJI} Чет пошло не так: {e}"
 
@@ -271,26 +294,47 @@ async def start_handler(message: Message):
 async def open_settings_handler(message: Message):
     if not (await is_registered(message.from_id, message.peer_id)):
         return f"{SYSTEM_EMOJI} Для этого надо зарегестрироваться!"
-    await message.answer("Держи настройки!", keyboard=SETTINGS_KBD)
+
+    current_mood_str = await get_value(message.from_id, message.peer_id, "ai_mood")
+    current_mood = await get_mood_by_id(int(current_mood_str))
+
+    await message.answer(f"Текущее настроение: {current_mood['name']}", keyboard=SETTINGS_KBD)
 
 
 @bot.on.message(text="!поменять настроение")
-@bot.on.message(payload={"cmd": "change_gpt_mood"})
-async def list_mood_handler(_: Message):
+@bot.on.message(payload={"cmd": "change_gpt_mood_info"})
+async def list_mood_handler(message: Message):
     moods = await get_moods_desc()
     moods_str = "На данный момент боту можно задать такие настроения:\n"
-    for i, mood in enumerate(moods, 1):
+    kbd = Keyboard(inline=True)
+    for i, mood in enumerate(moods, 0):
+        kbd.add(Text(str(i), payload={"set_mood_id": i}))
         moods_str += f"{i}. {mood}\n"
     moods_str += "\nЧтобы задать настроение боту, напишите \"!поменять настроение <номер>\"."
-    return moods_str
+    await message.answer(moods_str, keyboard=kbd.get_json())
 
 
 @bot.on.message(text="!поменять настроение <mood_num:int>")
-async def change_mood_handler(message: Message, mood_num: int):
+@bot.on.message(payload_map=[("set_mood_id", int)])
+async def change_mood_handler(message: Message, mood_num: int | None = None):
     if not (await is_registered(message.from_id, message.peer_id)):
         return (
             f"{SYSTEM_EMOJI} Гений, чтобы поменять настроение,"
-            " нужно зарегаться командой \"!начать\"."
+            " нужно сначала зарегаться командой \"!начать\"."
+        )
+
+    payload = message.get_payload_json()
+    if mood_num is None:
+        mood_num = payload["set_mood_id"]
+
+    if mood_num == 0:
+        await update_value(message.from_id, message.peer_id, "ai_mood", 0)
+        return (
+            f"{SYSTEM_EMOJI} Чтобы установить кастомное настроение, используйте команду"
+            ' "!кастом <инструкции>". Инструкции лучше писать на английском языке!'
+            "\nПример: You are now a cute anime girl. Don't forget to use :3 and other things"
+            " that cute anime girls say. Speak only Russian."
+            '\n\nВы установили кастомное настроение. Чтобы узнать его, напишите "!кастом"'
         )
 
     moods = await get_moods()
@@ -310,13 +354,34 @@ async def change_mood_handler(message: Message, mood_num: int):
     return f"{SYSTEM_EMOJI} Вы выбрали настроение: {selected_mood['name']}."
 
 
+@bot.on.message(text=("!кастом", "!кастом <mood_text>"))
+async def set_custom_mood(message: Message, mood_text: str | None = None):
+    if not (await is_registered(message.from_id, message.peer_id)):
+        return (
+            f"{SYSTEM_EMOJI} Гений, чтобы сделать кастомное настроение,"
+            " нужно сначала зарегаться командой \"!начать\"."
+        )
+
+    if mood_text is None:
+        current_custom_mood = await get_value(message.from_id, message.peer_id, "custom_mood")
+        return f"{SYSTEM_EMOJI} Ваш текущий кастомный муд: {current_custom_mood}"
+
+    fail_reason = await moderate_query(client, mood_text)
+    if fail_reason:
+        return fail_reason
+
+    await update_value(message.from_id, message.peer_id, "ai_mood", 0)
+    await update_value(message.from_id, message.peer_id, "custom_mood", mood_text)
+    return f"{SYSTEM_EMOJI} Вы успешно установили кастомное настроение!"
+
+
 @bot.on.message(text="!удалить гпт")
 @bot.on.message(payload={"cmd": "delete_account"})
 async def delete_account_handler(message: Message):
     if not (await is_registered(message.from_id, message.peer_id)):
         return (
             f"{SYSTEM_EMOJI} Пока мы живем в 2024, этот гений живет в 1488"
-            "\nУ вас и так нет аккаунта. Отличная причина создать такой!"
+            "\nУ вас и так нет аккаунта. Отличная причина создать его!"
         )
     await delete_account(message.from_id, message.peer_id)
     return f"{SYSTEM_EMOJI} Готово... но зачем?"
