@@ -70,6 +70,7 @@ async def process_query(
     """
     Returns a tuple of raw messages (for moderation) and messages
     """
+    user = await message.get_user(fields="bdate")
     if add_system:
         mood_id_str = await get_value(message.from_id, message.peer_id, "ai_mood")
         if mood_id_str is None:
@@ -88,12 +89,14 @@ async def process_query(
             instructions = selected_mood["instructions"]
 
         current_date = datetime.now()
-        current_date_strf = current_date.strftime("%Y/%m/%d - %H:%M:%S")
+        current_date_strf = current_date.strftime("%d.%m.%Y - %H:%M:%S")
+        bdate = user.bdate
 
-        year_msg = f"\nCurrent time and date: {current_date_strf} (year/month/day), the timezone is GMT+2"
+        year_msg = f"\nCurrent time and date: {current_date_strf} (day.month.year), the timezone is GMT+2"
+        bdate_msg = f"\nUser's birthday date: {bdate}"
 
         messages = [
-            {"role": "system", "content": instructions+year_msg},
+            {"role": "system", "content": instructions+year_msg+bdate_msg},
         ]
     else:
         messages = []
@@ -119,7 +122,6 @@ async def process_query(
 
     new_msg = {"role": "user", "content": ""}
     try:
-        user = await message.get_user()
         new_msg["content"] = f"{user.first_name} {user.last_name}: "
     except Exception as e:
         logger.error(f"Couldn't add user's name (group?): {e}")
