@@ -1,14 +1,22 @@
-import aiofiles
-import msgspec
+import re
+from datetime import datetime
+
+import ai_stuff
+from constants import (
+    AI_BAN_WORDS,
+    BAN_WORDS,
+    CENSOR_WORDS,
+    MAX_IMAGE_WIDTH,
+    SYSTEM_EMOJI,
+)
+from loguru import logger
 from openai import AsyncOpenAI
 from vkbottle.bot import Message
 from vkbottle_types.objects import (
     MessagesMessageAttachmentType,
-    PhotosPhotoSizes
+    PhotosPhotoSizes,
+    UsersUserFull,
 )
-
-import ai_stuff
-from config import BAN_WORDS, MAX_IMAGE_WIDTH, MOODS_PATH, SYSTEM_EMOJI
 
 
 def pick_size(sizes: list[PhotosPhotoSizes]) -> str:
@@ -48,44 +56,64 @@ def pick_img(message: Message) -> str | None:
     return img_url
 
 
-async def moderate_query(client: AsyncOpenAI, query: str) -> str | None:
+def process_instructions(
+    instructions: str, user: UsersUserFull | None = None
+) -> str:
+    current_date = datetime.now()
+    current_date_strf = current_date.strftime(r"%d.%m.%Y - %H:%M:%S")
+
+    instructions += (
+        f"\nCurrent time and date: {current_date_strf} (day.month.year), the timezone is GMT+2"
+    )
+    if user:
+        instructions += f"\nUser's birthday date: {user.bdate}"
+    return instructions
+
+
+async def moderate_query(query: str, client: AsyncOpenAI | None = None) -> str | None:
     num_tokens = ai_stuff.num_tokens_from_string(query)
     if num_tokens > 4000:
         return (
             f"{SYSTEM_EMOJI} В сообщении более 4000"
-            " токенов ({num_tokens})! Используйте меньше слов."
+            f" токенов ({num_tokens})! Используйте меньше слов."
+        )
+
+    if re.search(r"[a-zA-Zа-яА-Я]\.[a-zA-Zа-яА-Я]", query):
+        # The message has a potential link
+        return (
+            f"{SYSTEM_EMOJI} В вашем тексте что-то не так!"
+            " Вы же не хотите забанить ни себя, ни эту группу, верно?"
         )
 
     if any(ban_word in query.lower() for ban_word in BAN_WORDS):
         return f"{SYSTEM_EMOJI} Попробуй поговорить о чем-то другом. Поможет в развитии."
 
-    try:
-        flagged = await ai_stuff.is_flagged(client, query)
-    except Exception as e:
-        return f"{SYSTEM_EMOJI} Произошла ошибка во время модерации текста: {e}"
+    if client is not None:
+        try:
+            flagged = await ai_stuff.moderate(client, query)
+        except Exception as e:
+            logger.error(f"Couldn't moderate text: {e}")
+            return f"{SYSTEM_EMOJI} Произошла ошибка во время модерации текста: {e}"
 
-    if flagged[0] is True:
+        if flagged[0] is True:
+            return (
+                f"{SYSTEM_EMOJI} Бан, бан, бан...\n"
+                f"Запрос нарушает правила OpenAI: {flagged[1]}"
+            )
+
+
+def moderate_result(query: str) -> tuple[int, str]:
+    if (
+        any(ban_word in query.lower() for ban_word in AI_BAN_WORDS) or
+        re.search(r"[a-zA-Zа-яА-Я]\.[a-zA-Zа-яА-Я]", query)
+    ):
+        # Potential link
         return (
-            f"{SYSTEM_EMOJI} Лил бро попытался забанить меня, но у него ничего не получилось :(\n"
-            f"Запрос нарушает правила OpenAI: {flagged[1]}"
+            1,
+            f"{SYSTEM_EMOJI} В результате оказалось слово из черного списка."
+            " Спасибо, что потратил мои 0.0020 центов."
         )
 
-
-async def get_moods() -> list[dict]:
-    async with aiofiles.open(MOODS_PATH, "rb") as f:
-        moods_list_bytes = await f.read()
-    moods_list = msgspec.json.decode(moods_list_bytes)
-    return moods_list
-
-
-async def get_moods_desc() -> list[str]:
-    moods_list = await get_moods()
-    moods = [mood["desc"] for mood in moods_list]
-    return moods
-
-
-async def get_mood_by_id(mood_id: int) -> dict | None:
-    moods_list = await get_moods()
-    for mood in moods_list:
-        if mood["id"] == mood_id:
-            return mood
+    for censor in CENSOR_WORDS:
+        query = query.replace(censor, "***")
+    return (0, query)

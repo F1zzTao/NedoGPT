@@ -1,5 +1,14 @@
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
 SYSTEM_EMOJI = "⚙️"
 AI_EMOJI = "🤖"
+
+BOT_ID = "-" + os.environ["VK_GROUP_ID"]
+SEPARATOR_TOKEN = "<|endoftext|>"
 
 HELP_MSG = (
     f"{SYSTEM_EMOJI} !ai <запрос> - запрос к боту (gpt-3.5-turbo)"
@@ -19,4 +28,3 @@ AI_BAN_WORDS = ("синий кит", "сова никогда не спит",)
 CENSOR_WORDS = ("onion", "hitler", "vtope", "vto.pe", "vto pe",)
 
 DB_PATH = "./db.db"
-MOODS_PATH = "./moods.json"

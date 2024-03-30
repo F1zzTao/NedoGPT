@@ -9,7 +9,7 @@ OPEN_SETTINGS_KBD = (
 
 SETTINGS_KBD = (
     Keyboard(inline=True)
-    .add(Text("Поменять настроение бота", {"cmd": "change_gpt_mood_info"}))
+    .add(Text("Поменять муд", {"cmd": "change_gpt_mood_info"}))
     .row()
     .add(Text("Удалить аккаунт", {"cmd": "delete_account"}), Color.NEGATIVE)
 ).get_json()
