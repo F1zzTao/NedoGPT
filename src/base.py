@@ -10,9 +10,9 @@ class Message:
     user_id: str | None = None
     full_name: str | None = None
 
-    def render(self):
+    def render(self, incl_full_name: bool = True):
         result = self.text
-        if self.full_name:
+        if self.full_name and incl_full_name:
             result = self.full_name + ": " + result
         return result
 
@@ -25,9 +25,9 @@ class Conversation:
         self.messages.insert(0, message)
         return self
 
-    def render(self):
+    def render(self, incl_full_name: bool = True):
         return f"\n{SEPARATOR_TOKEN}".join(
-            [message.render() for message in self.messages]
+            [message.render(incl_full_name) for message in self.messages]
         )
 
 

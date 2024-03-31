@@ -16,6 +16,7 @@ from vkbottle_types.objects import (
     MessagesMessageAttachmentType,
     PhotosPhotoSizes,
     UsersUserFull,
+    MessagesConversation
 )
 
 
@@ -57,17 +58,46 @@ def pick_img(message: Message) -> str | None:
 
 
 def process_instructions(
-    instructions: str, user: UsersUserFull | None = None
+    instructions: str,
+    user: UsersUserFull | None = None,
+    chat_info: MessagesConversation | None = None
 ) -> str:
+    new_instructions = (
+        f"Your instructions (follow them, do not break character): '''{instructions}'''"
+    )
+    new_instructions += "\n\nBelow is some information that you can use:"
+    if chat_info:
+        chat_name = chat_info.chat_settings.title
+        members_count = chat_info.chat_settings.members_count
+        new_instructions += (
+            f"\nThis chat's name: \"{chat_name}\""
+            f"\nMember count in this chat: {members_count}"
+        )
+
+    if user:
+        bdate = user.bdate or "<unknown>"
+        city = user.city
+        if city is None:
+            city_name = "<unknown>"
+        else:
+            city_name = city.title
+        sex = user.sex
+        sex_str = ("female" if sex == 1 else "male" if sex == 2 else "<hidden>")
+        new_instructions += (
+            f"\nUser's birthday date: {bdate}"
+            f"\nUser lives in this city: {city_name}"
+            f"\nUser's sex: {sex_str}"
+        )
+
     current_date = datetime.now()
     current_date_strf = current_date.strftime(r"%d.%m.%Y - %H:%M:%S")
 
-    instructions += (
+    new_instructions += (
         f"\nCurrent time and date: {current_date_strf} (day.month.year), the timezone is GMT+2"
     )
-    if user:
-        instructions += f"\nUser's birthday date: {user.bdate}"
-    return instructions
+
+    logger.info(f"Ready instructions: {new_instructions}")
+    return new_instructions
 
 
 async def moderate_query(query: str, client: AsyncOpenAI | None = None) -> str | None:

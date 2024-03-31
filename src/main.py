@@ -42,9 +42,6 @@ bot.labeler.vbml_ignore_case = True  # type: ignore
 group_id = os.environ["VK_GROUP_ID"]
 client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-msg_history: dict = {}
-waiting_line = []
-
 
 @bot.on.message(text="!aihelp")
 async def ai_help_handler(_: VkMessage):
@@ -72,14 +69,14 @@ async def count_tokens_handler(message: VkMessage, query: str | None = None):
 @bot.on.message(text=('!ai <query>', '!gpt3 <query>'))
 async def ai_txt_handler(message: VkMessage, query: str):
     try:
-        user = await message.get_user(fields="bdate")
+        user = await message.get_user(fields=["bdate", "city", "sex"])
         full_name = user.first_name + " " + user.last_name
     except IndexError:
         # User is a group
         user = None
         full_name = "Anonymous"
 
-    conv = Conversation([Message(query, str(message.from_id), full_name)])
+    conv = Conversation([Message(query.replace("debug ", ""), str(message.from_id), full_name)])
 
     reply_user = None
     if message.reply_message is not None:
@@ -98,7 +95,7 @@ async def ai_txt_handler(message: VkMessage, query: str):
             )
         )
 
-    conversation_text = conv.render()
+    conversation_text = conv.render(incl_full_name=False)
 
     fail_reason = await moderate_query(conversation_text, client)
     if fail_reason:
@@ -107,12 +104,20 @@ async def ai_txt_handler(message: VkMessage, query: str):
     try:
         user_mood = await get_user_mood(message.from_id)
     except TypeError:
-        # User is a group/User doesn't have an account
-        # Using default assistant mood instead
+        # User is a group or he doesn't have an account
+        # Defaulting to assistant mood
         user_mood = await get_mood(0)
 
+    chat_info = (
+        await bot.api.messages.get_conversations_by_id(peer_ids=[message.peer_id])
+    ).items[0]
+
     user_mood_instr = user_mood[5]
-    mood_instr = process_instructions(user_mood_instr, (user if reply_user is None else None))
+    mood_instr = process_instructions(
+        user_mood_instr,
+        (user if reply_user is None else None),
+        chat_info
+    )
 
     prompt = Prompt(
         header=Message(mood_instr),
@@ -126,7 +131,14 @@ async def ai_txt_handler(message: VkMessage, query: str):
         return moderated[1]
 
     response = moderated[1]
-    await message.reply(f"{AI_EMOJI} {response}")
+    msg_reply = f"{AI_EMOJI} {response}"
+
+    if query.startswith("debug "):
+        msg_reply += (
+            f"\n\n{SYSTEM_EMOJI} Разная фигня: "
+            f"\nfull prompt: {prompt}"
+        )
+    await message.reply(msg_reply)
 
 
 @bot.on.message(text=("начать", "!начать"))
@@ -170,10 +182,10 @@ async def list_mood_handler(message: VkMessage):
         return f"{SYSTEM_EMOJI} Публичных мудов в боте пока не существует!"
 
     all_moods_str = f"{SYSTEM_EMOJI} Вот все текущие публичные муды:"
-    for i, mood in enumerate(moods, 1):
+    for mood in moods:
         mood_id = mood[0]
         mood_name = mood[3]
-        all_moods_str += f"\n{i}. {mood_name} (id: {mood_id})"
+        all_moods_str += f"\n• {mood_name} (id: {mood_id})"
     return all_moods_str
 
 
@@ -203,7 +215,13 @@ async def custom_mood_info(message: VkMessage, mood_id: int):
     )
 
 
-@bot.on.message(text="!поменять настроение <mood_id:int>")
+@bot.on.message(
+    text=(
+        "!поменять муд <mood_id:int>",
+        "!установить муд <mood_id:int>",
+        "!выбрать муд <mood_id:int>",
+    )
+)
 @bot.on.message(payload_map=[("set_mood_id", int)])
 async def change_mood_handler(message: VkMessage, mood_id: int | None = None):
     if not (await is_registered(message.from_id)):
@@ -217,7 +235,7 @@ async def change_mood_handler(message: VkMessage, mood_id: int | None = None):
         mood_id = payload["set_mood_id"]
 
     custom_mood = await get_mood(mood_id)
-    if not custom_mood:
+    if not custom_mood or (custom_mood[2] == 0 and message.from_id != custom_mood[1]):
         return f"{SYSTEM_EMOJI} Такого муда не существует!"
     mood_id = custom_mood[0]
     mood_name = custom_mood[3]
@@ -295,7 +313,7 @@ async def customize_mood_handler(message: VkMessage, params_str: str):
         return f"{SYSTEM_EMOJI} Гений, это не твой муд! Сделай его копию и меняй как хочешь."
 
     success_msg = ""
-    if params[0] == "имя":
+    if params[0] in ("имя", "название"):
         mood_name = ' '.join(params[2:])
         fail_reason = await moderate_query(mood_name)
         if fail_reason:
@@ -351,9 +369,9 @@ async def my_moods_handler(message: VkMessage):
         )
 
     user_moods_message = f"{SYSTEM_EMOJI} Ваши муды:"
-    for i, mood in enumerate(user_moods, 1):
+    for mood in user_moods:
         pub_mood = await get_mood(mood)
-        user_moods_message += f"\n{i}. {pub_mood[3]} (id: {pub_mood[0]})"
+        user_moods_message += f"\n• {pub_mood[3]} (id: {pub_mood[0]})"
 
     return user_moods_message
 
