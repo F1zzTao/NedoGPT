@@ -1,4 +1,5 @@
 import tiktoken
+from loguru import logger
 from openai import AsyncOpenAI
 
 from constants import BOT_ID, SEPARATOR_TOKEN
@@ -26,6 +27,7 @@ async def create_response(
 
 async def moderate(client: AsyncOpenAI, query: str) -> tuple:
     moderation = await client.moderations.create(input=query)
+    logger.info(f"Moderation results:\n{moderation}")
     is_flagged = moderation.results[0].flagged
     moderation_dict = moderation.model_dump()
     categories_dict = moderation_dict['results'][0]['categories']

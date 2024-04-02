@@ -53,11 +53,11 @@ class Prompt:
                 yield {
                     "role": "user",
                     "name": message.user_id,
-                    "content": message.text,
+                    "content": message.render(),
                 }
             else:
                 yield {
                     "role": "assistant",
                     "name": bot_id,
-                    "content": message.text,
+                    "content": message.render(incl_full_name=False),
                 }

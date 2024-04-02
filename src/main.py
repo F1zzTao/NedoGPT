@@ -4,6 +4,7 @@ import ai_stuff
 from base import Conversation, Message, Prompt
 from constants import (
     AI_EMOJI,
+    BOT_ID,
     HELP_MSG,
     SYSTEM_EMOJI,
 )
@@ -136,7 +137,7 @@ async def ai_txt_handler(message: VkMessage, query: str):
     if query.startswith("debug "):
         msg_reply += (
             f"\n\n{SYSTEM_EMOJI} Разная фигня: "
-            f"\nfull prompt: {prompt}"
+            f"\nfull prompt: {prompt.full_render(BOT_ID)}"
         )
     await message.reply(msg_reply)
 
