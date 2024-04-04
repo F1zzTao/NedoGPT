@@ -61,3 +61,19 @@ class Prompt:
                     "name": bot_id,
                     "content": message.render(incl_full_name=False),
                 }
+
+
+@dataclass(frozen=True)
+class UserInfo:
+    user_id: int
+    full_name: str
+
+    bdate: str | None = None
+    city: str | None = None
+    sex: int | None = None
+
+
+@dataclass(frozen=True)
+class ChatInfo:
+    title: str
+    members_count: int | None = None

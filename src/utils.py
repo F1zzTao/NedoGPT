@@ -15,9 +15,8 @@ from vkbottle.bot import Message
 from vkbottle_types.objects import (
     MessagesMessageAttachmentType,
     PhotosPhotoSizes,
-    UsersUserFull,
-    MessagesConversation
 )
+from base import UserInfo, ChatInfo
 
 
 def pick_size(sizes: list[PhotosPhotoSizes]) -> str:
@@ -59,16 +58,16 @@ def pick_img(message: Message) -> str | None:
 
 def process_instructions(
     instructions: str,
-    user: UsersUserFull | None = None,
-    chat_info: MessagesConversation | None = None
+    user: UserInfo | None = None,
+    chat_info: ChatInfo | None = None
 ) -> str:
     new_instructions = (
         f"Your instructions (follow them, do not break character): '''{instructions}'''"
     )
     new_instructions += "\n\nBelow is some information that you can use:"
     if chat_info:
-        chat_name = chat_info.chat_settings.title
-        members_count = chat_info.chat_settings.members_count
+        chat_name = chat_info.title
+        members_count = chat_info.members_count or "<unknown>"
         new_instructions += (
             f"\nThis chat's name: \"{chat_name}\""
             f"\nMember count in this chat: {members_count}"
@@ -76,11 +75,7 @@ def process_instructions(
 
     if user:
         bdate = user.bdate or "<unknown>"
-        city = user.city
-        if city is None:
-            city_name = "<unknown>"
-        else:
-            city_name = city.title
+        city_name = user.city or "<unknown>"
         sex = user.sex
         sex_str = ("female" if sex == 1 else "male" if sex == 2 else "<hidden>")
         new_instructions += (
@@ -96,7 +91,6 @@ def process_instructions(
         f"\nCurrent time and date: {current_date_strf} (day.month.year), the timezone is GMT+2"
     )
 
-    logger.info(f"Ready instructions: {new_instructions}")
     return new_instructions
 
 

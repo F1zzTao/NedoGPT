@@ -16,6 +16,7 @@ async def create_response(
     client: AsyncOpenAI, prompt: Prompt, model: str = "gpt-3.5-turbo"
 ) -> str:
     rendered = prompt.full_render(BOT_ID)
+    logger.info(rendered)
     response = await client.chat.completions.create(
         model=model,
         messages=rendered,
