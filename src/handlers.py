@@ -1,12 +1,22 @@
 from sqlite3 import Row
+
 from loguru import logger
 from openai import AsyncOpenAI
 
 import ai_stuff
-from base import ChatInfo, Prompt, UserInfo, Conversation, Message
+from base import ChatInfo, Conversation, Message, Prompt, UserInfo
 from constants import AI_EMOJI, HELP_MSG, SYSTEM_EMOJI
 from db import (
-    create_mood, get_all_moods, get_mood, get_user_mood, get_user_created_moods, is_registered, create_account, update_value, update_mood_value
+    create_account,
+    create_mood,
+    delete_account,
+    get_all_moods,
+    get_mood,
+    get_user_created_moods,
+    get_user_mood,
+    is_registered,
+    update_mood_value,
+    update_value
 )
 from utils import moderate_query, moderate_result, process_instructions
 
@@ -209,7 +219,9 @@ async def handle_create_mood(client: AsyncOpenAI, user_id: str, instr: str, cp: 
     )
 
 
-async def handle_edit_mood(client: AsyncOpenAI, user_id: int, params_str: str, cp: str = "!") -> str:
+async def handle_edit_mood(
+    client: AsyncOpenAI, user_id: int, params_str: str, cp: str = "!"
+) -> str:
     if not (await is_registered(user_id)):
         return (
             f"{SYSTEM_EMOJI} Что ты там менять собрался? У тебя даже аккаунта нет!"

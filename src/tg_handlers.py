@@ -2,11 +2,18 @@ import os
 
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
-from telegrinder import API, CallbackQuery, Message, Telegrinder, Token, InlineKeyboard, InlineButton
+from telegrinder import (
+    API,
+    CallbackQuery,
+    InlineButton,
+    InlineKeyboard,
+    Message,
+    Telegrinder,
+    Token
+)
 from telegrinder.rules import CallbackDataEq, CallbackDataMarkup, Markup, Text
 from telegrinder.types import User
 
-from constants import SYSTEM_EMOJI
 import handlers
 from base import ChatInfo, UserInfo
 from db import create_tables

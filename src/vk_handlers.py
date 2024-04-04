@@ -30,7 +30,7 @@ async def start_handler(message: VkMessage):
     await message.answer(msg_reply[0], keyboard=kbd)
 
 
-@bot.on.message(text="!aihelp")
+@bot.on.message(text=("!aihelp", "!команды"))
 async def help_handler(_: VkMessage):
     return handlers.handle_help()
 

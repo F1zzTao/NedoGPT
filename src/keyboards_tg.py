@@ -1,4 +1,4 @@
-from telegrinder import InlineKeyboard, InlineButton
+from telegrinder import InlineButton, InlineKeyboard
 
 OPEN_SETTINGS_KBD = (
     InlineKeyboard()

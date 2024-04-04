@@ -2,8 +2,8 @@ import tiktoken
 from loguru import logger
 from openai import AsyncOpenAI
 
-from constants import BOT_ID, SEPARATOR_TOKEN
 from base import Prompt
+from constants import BOT_ID, SEPARATOR_TOKEN
 
 
 def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:

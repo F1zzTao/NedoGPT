@@ -1,22 +1,23 @@
 import re
 from datetime import datetime
 
-import ai_stuff
-from constants import (
-    AI_BAN_WORDS,
-    BAN_WORDS,
-    CENSOR_WORDS,
-    MAX_IMAGE_WIDTH,
-    SYSTEM_EMOJI,
-)
 from loguru import logger
 from openai import AsyncOpenAI
 from vkbottle.bot import Message
 from vkbottle_types.objects import (
     MessagesMessageAttachmentType,
-    PhotosPhotoSizes,
+    PhotosPhotoSizes
 )
-from base import UserInfo, ChatInfo
+
+import ai_stuff
+from base import ChatInfo, UserInfo
+from constants import (
+    AI_BAN_WORDS,
+    BAN_WORDS,
+    CENSOR_WORDS,
+    MAX_IMAGE_WIDTH,
+    SYSTEM_EMOJI
+)
 
 
 def pick_size(sizes: list[PhotosPhotoSizes]) -> str:
