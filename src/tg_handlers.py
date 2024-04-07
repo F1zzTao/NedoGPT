@@ -78,7 +78,7 @@ async def ai_handler(message: Message, query: str):
     msg_reply = await handlers.handle_ai(
         client, query, user, reply_user, reply_query, chat
     )
-    return msg_reply
+    await message.reply(msg_reply)
 
 
 @bot.on.message(Text(["/settings", "/гптнастройки"]))
@@ -147,12 +147,14 @@ async def create_mood_info_handler(_: Message):
 
 @bot.on.message(Markup(["/создать муд <instr>", "/новый муд <instr>"]))
 async def create_mood_handler(message: Message, instr: str):
-    return (await handlers.handle_create_mood(client, message.from_user.id, instr))
+    return (await handlers.handle_create_mood(client, message.from_user.id, instr, DEFAULT_PREFIX))
 
 
 @bot.on.message(Markup("/муд <params_str>"))
 async def edit_mood_handler(message: Message, params_str: str):
-    return (await handlers.handle_edit_mood(client, message.from_user.id, params_str))
+    return (
+        await handlers.handle_edit_mood(client, message.from_user.id, params_str, DEFAULT_PREFIX)
+    )
 
 
 @bot.on.message(Text(["/mymoods", "/мои муды"]))

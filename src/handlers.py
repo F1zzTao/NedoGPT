@@ -293,7 +293,7 @@ async def handle_my_moods(user_id: int, cp: str = "!") -> str:
     if len(user_moods) == 0:
         return (
             f"{SYSTEM_EMOJI} Удивительно, но вы ещё не создавали собственный муд!"
-            "\nЧтобы его создать, напишите \"{cp}создать муд\""
+            f"\nЧтобы его создать, напишите \"{cp}создать муд\""
         )
 
     user_moods_message = f"{SYSTEM_EMOJI} Ваши муды:"

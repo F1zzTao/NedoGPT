@@ -25,7 +25,7 @@ client = AsyncOpenAI(api_key=OPENAI_TOKEN)
 
 @bot.on.message(text=("начать", "!начать"))
 async def start_handler(message: VkMessage):
-    msg_reply = handlers.handle_start(message.from_id)
+    msg_reply = await handlers.handle_start(message.from_id)
     kbd = (OPEN_SETTINGS_KBD if msg_reply[1] else None)
     await message.answer(msg_reply[0], keyboard=kbd)
 
@@ -76,9 +76,11 @@ async def ai_txt_handler(message: VkMessage, query: str):
     chat_info_raw = (
         await bot.api.messages.get_conversations_by_id(peer_ids=[message.peer_id])
     ).items[0]
-    chat_info = ChatInfo(
-        chat_info_raw.chat_settings.title, chat_info_raw.chat_settings.members_count
-    )
+    chat_info = None
+    if chat_info_raw.chat_settings:
+        chat_info = ChatInfo(
+            chat_info_raw.chat_settings.title, chat_info_raw.chat_settings.members_count
+        )
 
     msg_reply = await handlers.handle_ai(
         client, query, user_info, reply_user_info, reply_query, chat_info
@@ -114,8 +116,8 @@ async def custom_mood_info(message: VkMessage, mood_id: int):
         .add(Text("Выбрать этот муд", payload={"set_mood_id": mood[0]}), color=Color.PRIMARY)
     ).get_json()
 
-    mood_info_msg = await handlers.handle_mood_info(creator_full_name_gen, mood)
-    await message.answer(mood_info_msg, choose_this_kbd, disable_mentions=True)
+    mood_info_msg = await handlers.handle_mood_info(mood, creator_full_name_gen)
+    await message.answer(mood_info_msg, keyboard=choose_this_kbd, disable_mentions=True)
 
 
 @bot.on.message(
@@ -128,6 +130,9 @@ async def custom_mood_info(message: VkMessage, mood_id: int):
 )
 @bot.on.message(payload_map=[("set_mood_id", int)])
 async def change_mood_handler(message: VkMessage, mood_id: int | None = None):
+    payload = message.get_payload_json()
+    if not mood_id:
+        mood_id = payload["set_mood_id"]
     return (await handlers.handle_set_mood(message.from_id, mood_id))
 
 
