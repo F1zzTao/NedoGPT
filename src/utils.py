@@ -18,6 +18,7 @@ from constants import (
     MAX_IMAGE_WIDTH,
     SYSTEM_EMOJI
 )
+from db import get_value
 
 
 def pick_size(sizes: list[PhotosPhotoSizes]) -> str:
@@ -57,32 +58,27 @@ def pick_img(message: Message) -> str | None:
     return img_url
 
 
-def process_instructions(
+async def process_instructions(
     instructions: str,
-    user: UserInfo | None = None,
+    user_id: int | None = None,
     chat_info: ChatInfo | None = None
 ) -> str:
     new_instructions = (
         f"Your instructions (follow them, do not break character): '''{instructions}'''"
     )
-    new_instructions += "\n\nBelow is some information that you can use:"
+
+    if user_id:
+        user_persona = await get_value(user_id, "persona")
+        if user_persona:
+            new_instructions += f"\nHere's the information about the user: '''{user_persona}'''"
+
+    new_instructions += "\nBelow is some information that you can use:"
     if chat_info:
         chat_name = chat_info.title
         members_count = chat_info.members_count or "<unknown>"
         new_instructions += (
             f"\nThis chat's name: \"{chat_name}\""
             f"\nMember count in this chat: {members_count}"
-        )
-
-    if user:
-        bdate = user.bdate or "<unknown>"
-        city_name = user.city or "<unknown>"
-        sex = user.sex
-        sex_str = ("female" if sex == 1 else "male" if sex == 2 else "<hidden>")
-        new_instructions += (
-            f"\nUser's birthday date: {bdate}"
-            f"\nUser lives in this city: {city_name}"
-            f"\nUser's sex: {sex_str}"
         )
 
     current_date = datetime.now()

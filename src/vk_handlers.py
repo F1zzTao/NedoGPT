@@ -131,7 +131,7 @@ async def custom_mood_info(message: VkMessage, mood_id: int):
 @bot.on.message(payload_map=[("set_mood_id", int)])
 async def change_mood_handler(message: VkMessage, mood_id: int | None = None):
     payload = message.get_payload_json()
-    if not mood_id:
+    if mood_id is None:
         mood_id = payload["set_mood_id"]
     return (await handlers.handle_set_mood(message.from_id, mood_id))
 
@@ -154,6 +154,26 @@ async def edit_mood_handler(message: VkMessage, params_str: str):
 @bot.on.message(text="!мои муды")
 async def my_moods_handler(message: VkMessage):
     return (await handlers.handle_my_moods(message.from_id))
+
+
+@bot.on.message(text="!персона")
+async def persona_info_handler(_: VkMessage):
+    return handlers.handle_persona_info()
+
+
+@bot.on.message(text="!персона <instr>")
+async def set_persona_handler(message: VkMessage, instr: str):
+    return (await handlers.handle_set_persona(client, message.from_id, instr))
+
+
+@bot.on.message(text="!моя персона")
+async def my_persona_handler(message: VkMessage):
+    return (await handlers.handle_my_persona(message.from_id))
+
+
+@bot.on.message(text="!удалить персону")
+async def del_persona_handler(message: VkMessage):
+    return (await handlers.handle_del_persona(message.from_id))
 
 
 @bot.on.message(text="!удалить гпт")

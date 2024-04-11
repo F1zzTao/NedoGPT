@@ -14,6 +14,7 @@ from db import (
     get_mood,
     get_user_created_moods,
     get_user_mood,
+    get_value,
     is_registered,
     update_mood_value,
     update_value
@@ -88,9 +89,10 @@ async def handle_ai(
         user_mood = await get_mood(0)
 
     user_mood_instr = user_mood[5]
-    mood_instr = process_instructions(
+    # ! User model is obsolete
+    mood_instr = await process_instructions(
         user_mood_instr,
-        (user if reply_user is None else None),
+        (user.user_id if reply_user is None else None),
         chat_info
     )
 
@@ -302,6 +304,42 @@ async def handle_my_moods(user_id: int, cp: str = "!") -> str:
         user_moods_message += f"\n• {pub_mood[3]} (id: {pub_mood[0]})"
 
     return user_moods_message
+
+
+def handle_persona_info(cp: str = "!") -> str:
+    return (
+        f"{SYSTEM_EMOJI} Персону, как и инструкции, желательно писать на английском!"
+        "\nПример: I'm Hu Tao. I work in Wangsheng Funeral Parlor together with Zhongli."
+        " I have very long brown twintail hair and flower-shaped pupils."
+    )
+
+
+async def handle_set_persona(client: AsyncOpenAI, user_id: int, persona: str) -> str:
+    if not (await is_registered(user_id)):
+        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
+
+    fail_reason = await moderate_query(persona, client)
+    if fail_reason:
+        return fail_reason
+
+    await update_value(user_id, "persona", persona)
+    return f"{SYSTEM_EMOJI} Вы успешно установили персону!"
+
+
+async def handle_my_persona(user_id: int) -> str:
+    if not (await is_registered(user_id)):
+        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
+
+    persona = await get_value(user_id, "persona")
+    return f"{SYSTEM_EMOJI} Вот ваша персона: {persona}"
+
+
+async def handle_del_persona(user_id: int) -> str:
+    if not (await is_registered(user_id)):
+        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
+
+    await update_value(user_id, "persona", None)
+    return f"{SYSTEM_EMOJI} Персона успешно удалена!"
 
 
 async def handle_del_account(user_id: int) -> str:

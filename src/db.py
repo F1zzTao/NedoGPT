@@ -11,7 +11,8 @@ SQL_USERS_TABLE = '''CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY NOT NULL,
     user_id INT NOT NULL,
     selected_mood_id INT NOT NULL DEFAULT 0,
-    created_moods_ids TEXT
+    created_moods_ids TEXT,
+    persona TEXT
 );'''
 SQL_PUBLIC_MOODS_TABLE = '''CREATE TABLE IF NOT EXISTS pub_moods (
     mood_id INTEGER PRIMARY KEY NOT NULL,
