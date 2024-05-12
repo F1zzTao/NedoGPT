@@ -10,7 +10,7 @@ from vkbottle_types.objects import (
 )
 
 import ai_stuff
-from base import ChatInfo, UserInfo
+from base import UserInfo
 from constants import (
     AI_BAN_WORDS,
     BAN_WORDS,
@@ -61,7 +61,6 @@ def pick_img(message: Message) -> str | None:
 async def process_instructions(
     instructions: str,
     user_id: int | None = None,
-    chat_info: ChatInfo | None = None
 ) -> str:
     new_instructions = (
         f"Your instructions (follow them, do not break character): '''{instructions}'''"
@@ -71,22 +70,6 @@ async def process_instructions(
         user_persona = await get_value(user_id, "persona")
         if user_persona:
             new_instructions += f"\nHere's the information about the user: '''{user_persona}'''"
-
-    new_instructions += "\nBelow is some information that you can use:"
-    if chat_info:
-        chat_name = chat_info.title
-        members_count = chat_info.members_count or "<unknown>"
-        new_instructions += (
-            f"\nThis chat's name: \"{chat_name}\""
-            f"\nMember count in this chat: {members_count}"
-        )
-
-    current_date = datetime.now()
-    current_date_strf = current_date.strftime(r"%d.%m.%Y - %H:%M:%S")
-
-    new_instructions += (
-        f"\nCurrent time and date: {current_date_strf} (day.month.year), the timezone is GMT+2"
-    )
 
     return new_instructions
 

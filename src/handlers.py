@@ -4,7 +4,7 @@ from loguru import logger
 from openai import AsyncOpenAI
 
 import ai_stuff
-from base import ChatInfo, Conversation, Message, Prompt, UserInfo
+from base import Conversation, Message, Prompt, UserInfo
 from constants import AI_EMOJI, HELP_MSG, SYSTEM_EMOJI
 from db import (
     create_account,
@@ -61,7 +61,6 @@ async def handle_ai(
     user: UserInfo,
     reply_user: UserInfo | None = None,
     reply_query: str | None = None,
-    chat_info: ChatInfo | None = None,
 ):
     conv = Conversation([Message(query, str(user.user_id), user.full_name)])
 
@@ -93,7 +92,6 @@ async def handle_ai(
     mood_instr = await process_instructions(
         user_mood_instr,
         (user.user_id if reply_user is None else None),
-        chat_info
     )
 
     prompt = Prompt(
@@ -331,7 +329,11 @@ async def handle_my_persona(user_id: int) -> str:
         return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
 
     persona = await get_value(user_id, "persona")
-    return f"{SYSTEM_EMOJI} Вот ваша персона: {persona}"
+    if persona:
+        msg = f"{SYSTEM_EMOJI} Вот ваша персона: {persona}"
+    else:
+        msg = f"{SYSTEM_EMOJI} У вас ещё не установлена персона!"
+    return msg
 
 
 async def handle_del_persona(user_id: int) -> str:

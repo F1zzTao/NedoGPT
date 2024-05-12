@@ -9,7 +9,7 @@ from vkbottle.bot import Bot
 from vkbottle.bot import Message as VkMessage
 
 import handlers
-from base import ChatInfo, UserInfo
+from base import UserInfo
 from keyboards_tg import SETTINGS_KBD
 from keyboards_vk import OPEN_SETTINGS_KBD
 
@@ -58,7 +58,7 @@ async def ai_txt_handler(message: VkMessage, query: str):
             city_title = user.city.title
         sex = user.sex
 
-    user_info = UserInfo(message.from_id, full_name, bdate, city_title, sex)
+    user_info = UserInfo(message.from_id, full_name)
 
     reply_user_info = None
     reply_query = None
@@ -73,17 +73,8 @@ async def ai_txt_handler(message: VkMessage, query: str):
 
         reply_user_info = UserInfo(message.reply_message.from_id, reply_full_name)
 
-    chat_info_raw = (
-        await bot.api.messages.get_conversations_by_id(peer_ids=[message.peer_id])
-    ).items[0]
-    chat_info = None
-    if chat_info_raw.chat_settings:
-        chat_info = ChatInfo(
-            chat_info_raw.chat_settings.title, chat_info_raw.chat_settings.members_count
-        )
-
     msg_reply = await handlers.handle_ai(
-        client, query, user_info, reply_user_info, reply_query, chat_info
+        client, query, user_info, reply_user_info, reply_query
     )
     await message.reply(msg_reply)
 

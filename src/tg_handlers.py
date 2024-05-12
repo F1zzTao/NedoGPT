@@ -15,7 +15,7 @@ from telegrinder.rules import CallbackDataEq, CallbackDataMarkup, Markup, Text
 from telegrinder.types import User
 
 import handlers
-from base import ChatInfo, UserInfo
+from base import UserInfo
 from db import create_tables
 from keyboards_tg import OPEN_SETTINGS_KBD, SETTINGS_KBD
 
@@ -73,10 +73,9 @@ async def ai_handler(message: Message, query: str):
 
     # Telegram has a really limited user and chat info, compared to VK...
     user = UserInfo(message.from_user.id, full_name)
-    chat = ChatInfo(message.chat_title)
 
     msg_reply = await handlers.handle_ai(
-        client, query, user, reply_user, reply_query, chat
+        client, query, user, reply_user, reply_query
     )
     await message.reply(msg_reply)
 
