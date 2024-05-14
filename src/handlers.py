@@ -194,8 +194,8 @@ async def handle_create_mood(client: AsyncOpenAI, user_id: str, instr: str, cp: 
         return fail_reason
 
     user_moods = await get_user_created_moods(user_id)
-    if len(user_moods) >= 5 and user_id != 322615766:  # ! hardcoded
-        return f"{SYSTEM_EMOJI} Вы не можете создать больше 5 мудов!"
+    if len(user_moods) >= 10 and user_id != 322615766:  # ! hardcoded
+        return f"{SYSTEM_EMOJI} Вы не можете создать больше 10 мудов!"
 
     # Creating mood
     inserted_id = await create_mood(user_id, "Мой муд", instr)
