@@ -88,7 +88,6 @@ async def handle_ai(
         user_mood = await get_mood(0)
 
     user_mood_instr = user_mood[5]
-    # ! User model is obsolete
     mood_instr = await process_instructions(
         user_mood_instr,
         (user.user_id if reply_user is None else None),
@@ -138,12 +137,13 @@ async def handle_mood_list() -> str:
 
 async def mood_exists(user_id: int, mood_id: int) -> str | Row:
     mood = await get_mood(mood_id)
-    if not mood or (mood[2] == 0 and mood[1] != user_id):
+    # ! hardcode
+    if not mood or (mood[2] == 0 and mood[1] not in (user_id, 322615766)):
         return f"{SYSTEM_EMOJI} Айди с таким мудом не существует или он приватный!"
     return mood
 
 
-async def handle_mood_info(mood, full_name: str | None = None) -> tuple[str, int]:
+async def handle_mood_info(mood, full_name: str | None = None) -> str:
     mood_id, mood_creator_id, _, mood_name, mood_desc, mood_instr = mood
     if full_name:
         mood_by = f"[id{mood_creator_id}|{full_name}]"

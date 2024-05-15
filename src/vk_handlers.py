@@ -3,8 +3,9 @@ import os
 from dotenv import load_dotenv
 from loguru import logger
 from openai import AsyncOpenAI
-from vkbottle import Keyboard, Text
+from vkbottle import Keyboard
 from vkbottle import KeyboardButtonColor as Color
+from vkbottle import Text
 from vkbottle.bot import Bot
 from vkbottle.bot import Message as VkMessage
 
@@ -12,6 +13,7 @@ import handlers
 from base import UserInfo
 from keyboards_tg import SETTINGS_KBD
 from keyboards_vk import OPEN_SETTINGS_KBD
+from vk_middlewares import DonationMsgMiddleware
 
 load_dotenv()
 
@@ -19,6 +21,7 @@ VK_TOKEN = os.getenv("VK_API_KEY")
 OPENAI_TOKEN = os.getenv("OPENAI_API_KEY")
 
 bot = Bot(VK_TOKEN)
+bot.labeler.message_view.register_middleware(DonationMsgMiddleware)
 bot.labeler.vbml_ignore_case = True
 client = AsyncOpenAI(api_key=OPENAI_TOKEN)
 
@@ -46,17 +49,10 @@ async def count_tokens_handler(message: VkMessage, query: str | None = None):
 @bot.on.message(text=('!ai <query>', '!gpt3 <query>'))
 async def ai_txt_handler(message: VkMessage, query: str):
     full_name = "Anonymous"
-    bdate = "<unknown>"
-    city_title = "<unknown>"
-    sex = 0
 
     if message.from_id > 0:
         user = await message.get_user(fields=["bdate", "city", "sex"])
         full_name = user.first_name + " " + user.last_name
-        bdate = user.bdate or bdate
-        if user.city:
-            city_title = user.city.title
-        sex = user.sex
 
     user_info = UserInfo(message.from_id, full_name)
 

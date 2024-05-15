@@ -162,13 +162,13 @@ async def my_moods_handler(message: Message):
 
 
 @bot.on.message(Text(["/persona", "/персона"]))
-async def persona_info_handler(message: Message):
+async def persona_info_handler(_: Message):
     return handlers.handle_persona_info(DEFAULT_PREFIX)
 
 
 @bot.on.message(Text(["/persona <persona>", "/персона <persona>"]))
 async def persona_handler(message: Message, persona: str):
-    return (await handlers.handle_set_persona(client, message.from_user.id, instr))
+    return (await handlers.handle_set_persona(client, message.from_user.id, persona))
 
 
 @bot.on.message(Text(["/mypersona", "/моя персона"]))

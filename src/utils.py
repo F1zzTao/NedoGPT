@@ -1,5 +1,4 @@
 import re
-from datetime import datetime
 
 from loguru import logger
 from openai import AsyncOpenAI
@@ -10,13 +9,14 @@ from vkbottle_types.objects import (
 )
 
 import ai_stuff
-from base import UserInfo
 from constants import (
     AI_BAN_WORDS,
     BAN_WORDS,
     CENSOR_WORDS,
     MAX_IMAGE_WIDTH,
-    SYSTEM_EMOJI
+    SYSTEM_BOT_PROMPT,
+    SYSTEM_EMOJI,
+    SYSTEM_USER_PROMPT
 )
 from db import get_value
 
@@ -30,6 +30,7 @@ def pick_size(sizes: list[PhotosPhotoSizes]) -> str:
     else:
         closest_size = max(filtered_sizes)
 
+    photo_url = ""
     for photo in sizes:
         if photo.width == closest_size:
             photo_url = photo.url
@@ -62,14 +63,12 @@ async def process_instructions(
     instructions: str,
     user_id: int | None = None,
 ) -> str:
-    new_instructions = (
-        f"Your instructions (follow them, do not break character): '''{instructions}'''"
-    )
-
+    new_instructions = instructions
     if user_id:
         user_persona = await get_value(user_id, "persona")
         if user_persona:
-            new_instructions += f"\nHere's the information about the user: '''{user_persona}'''"
+            new_instructions += '\n'+SYSTEM_USER_PROMPT.format(user_persona)
+    new_instructions = SYSTEM_BOT_PROMPT.format(new_instructions)
 
     return new_instructions
 
@@ -82,12 +81,8 @@ async def moderate_query(query: str, client: AsyncOpenAI | None = None) -> str |
             f" токенов ({num_tokens})! Используйте меньше слов."
         )
 
-    if re.search(r"[a-zA-Zа-яА-Я]\.[a-zA-Zа-яА-Я]", query):
-        # The message has a potential link
-        return (
-            f"{SYSTEM_EMOJI} В вашем тексте что-то не так!"
-            " Вы же не хотите забанить ни себя, ни эту группу, верно?"
-        )
+    # Remove links
+    query = re.sub(r'\.(?=[^\s])', '. ', query)
 
     if any(ban_word in query.lower() for ban_word in BAN_WORDS):
         return f"{SYSTEM_EMOJI} Попробуй поговорить о чем-то другом. Поможет в развитии."
@@ -107,11 +102,11 @@ async def moderate_query(query: str, client: AsyncOpenAI | None = None) -> str |
 
 
 def moderate_result(query: str) -> tuple[int, str]:
+    # Remove links
+    query = re.sub(r'\.(?=[^\s])', '. ', query)
     if (
-        any(ban_word in query.lower() for ban_word in AI_BAN_WORDS) or
-        re.search(r"[a-zA-Zа-яА-Я]\.[a-zA-Zа-яА-Я]", query)
+        any(ban_word in query for ban_word in AI_BAN_WORDS)
     ):
-        # Potential link
         return (
             1,
             f"{SYSTEM_EMOJI} В результате оказалось слово из черного списка."
