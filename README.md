@@ -42,6 +42,8 @@
 ## 💸 Донат
 - Поддержать меня и бота можно, задонатив через DonationAlerts - [donationalerts.com/r/F1zzTao](https://www.donationalerts.com/r/f1zztao)
 - Если вы из страны, в котором GitHub Donations не заблокирован, лучше задонатить через него - [github.com/sponsors/F1zzTao](https://github.com/sponsors/F1zzTao)
+- Также можете поддержать меня криптой:
+USDT (TRC20) - TT55NG5akLeqgXo2PtzHMuwCu3Bx2dJZtm
 
 ## ❤ Спасибо
 - NE&PE ❤
