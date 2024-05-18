@@ -173,7 +173,7 @@ async def persona_handler(message: Message, persona: str):
 
 @bot.on.message(Text(["/mypersona", "/моя персона"]))
 async def my_persona_handler(message: Message):
-    return (await handlers.handle_my_persona(message.from_id))
+    return (await handlers.handle_my_persona(message.from_user.id))
 
 
 @bot.on.message(Text(["/deletegpt", "/удалить гпт"]))
@@ -182,5 +182,5 @@ async def del_account_handler(message: Message):
 
 
 if __name__ == "__main__":
-    bot.loop_wrapper.on_startup.append(create_tables())
+    bot.loop_wrapper.lifespan.on_startup(create_tables())
     bot.run_forever()

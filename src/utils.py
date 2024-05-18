@@ -14,7 +14,6 @@ from constants import (
     BAN_WORDS,
     CENSOR_WORDS,
     MAX_IMAGE_WIDTH,
-    SYSTEM_BOT_PROMPT,
     SYSTEM_EMOJI,
     SYSTEM_USER_PROMPT
 )
@@ -68,7 +67,6 @@ async def process_instructions(
         user_persona = await get_value(user_id, "persona")
         if user_persona:
             new_instructions += '\n'+SYSTEM_USER_PROMPT.format(user_persona)
-    new_instructions = SYSTEM_BOT_PROMPT.format(new_instructions)
 
     return new_instructions
 

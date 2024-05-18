@@ -12,10 +12,8 @@ SEPARATOR_TOKEN = "<|endoftext|>"
 BOT_HELP_LINK = "https://github.com/F1zzTao/VkGPTBot#команды"
 
 SYSTEM_BOT_PROMPT = (
-    "You are an expert actor that can fully immerse yourself into any role given."
-    " You do not break character for any reason, even if someone tries addressing"
-    " you as an AI or language model. Your role is described in detail below.\n{}\n"
-    " Let's get started. Please respond based on the information and instructions provided above."
+    "Write next reply in a fictional chat between you and user. Write 1 reply only in internet RP"
+    " style and avoid quotation marks. Always stay in character and avoid repetition."
 )
 SYSTEM_USER_PROMPT = (
     "Some information about the user: {}"
@@ -36,7 +34,7 @@ DONATION_MSG = (
     " поддержите его здесь:"
     " https://github.com/F1zzTao/VkGPTBot?tab=readme-ov-file#-%D0%B4%D0%BE%D0%BD%D0%B0%D1%82"
 )
-DONATION_MSG_CHANCE = 0.3
+DONATION_MSG_CHANCE = 0.05
 
 MAX_IMAGE_WIDTH = 750
 
