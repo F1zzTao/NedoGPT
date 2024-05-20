@@ -158,3 +158,18 @@ async def update_mood_value(mood_id: int, key: str, value):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(f"UPDATE pub_moods SET {key}=? WHERE mood_id=?", (value, mood_id))
         await db.commit()
+
+
+async def delete_mood(mood_id: int, user_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM pub_moods WHERE mood_id=?", (mood_id,))
+        async with db.execute(
+            "SELECT created_moods_ids FROM users WHERE user_id=?;",
+            (user_id,)
+        ) as cur:
+            result = await cur.fetchone()
+        user_moods = result[0].split(',')
+        user_moods.remove(str(mood_id))
+        user_moods = ','.join(user_moods)
+        await db.execute("UPDATE users SET created_moods_ids=? WHERE user_id=?", (user_moods, user_id))
+        await db.commit()

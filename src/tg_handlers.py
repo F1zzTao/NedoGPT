@@ -176,6 +176,16 @@ async def my_persona_handler(message: Message):
     return (await handlers.handle_my_persona(message.from_user.id))
 
 
+@bot.on.message(Markup(["/deletemood <mood_id:int>", "/удалить муд <mood_id:int>"]))
+async def del_mood_handler(message: Message, mood_id: int):
+    return (await handlers.handle_del_mood(message.from_user.id, mood_id))
+
+
+@bot.on.message(Text(["/deletepersona", "/удалить персону"]))
+async def del_persona_handler(message: Message):
+    return (await handlers.handle_del_persona(message.from_user.id))
+
+
 @bot.on.message(Text(["/deletegpt", "/удалить гпт"]))
 async def del_account_handler(message: Message):
     return (await handlers.handle_del_account(message.from_user.id))

@@ -78,7 +78,7 @@ async def ai_txt_handler(message: VkMessage, query: str):
 @bot.on.message(text=("!гптнастройки", "!settings", "!настройки"))
 @bot.on.message(payload={"cmd": "settings"})
 async def open_settings_handler(message: VkMessage):
-    msg_reply = handlers.handle_settings(message.from_id)
+    msg_reply = await handlers.handle_settings(message.from_id)
     kbd = (SETTINGS_KBD if msg_reply[1] else None)
     await message.answer(msg_reply[0], keyboard=kbd)
 
@@ -156,6 +156,11 @@ async def set_persona_handler(message: VkMessage, instr: str):
 @bot.on.message(text="!моя персона")
 async def my_persona_handler(message: VkMessage):
     return (await handlers.handle_my_persona(message.from_id))
+
+
+@bot.on.message(text="!удалить муд <mood_id:int>")
+async def del_mood_handler(message: VkMessage, mood_id: int):
+    return (await handlers.handle_del_mood(message.from_id, mood_id))
 
 
 @bot.on.message(text="!удалить персону")

@@ -10,6 +10,7 @@ from db import (
     create_account,
     create_mood,
     delete_account,
+    delete_mood,
     get_all_moods,
     get_mood,
     get_user_created_moods,
@@ -344,6 +345,20 @@ async def handle_my_persona(user_id: int) -> str:
     else:
         msg = f"{SYSTEM_EMOJI} У вас ещё не установлена персона!"
     return msg
+
+
+async def handle_del_mood(user_id: int, mood_id: int) -> str:
+    if not (await is_registered(user_id)):
+        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
+    user_moods = await get_user_created_moods(user_id)
+    # ! hardcode
+    if mood_id not in user_moods or user_id != 322615766:
+        return (
+            f"{SYSTEM_EMOJI} Гений, это не твой муд. Если он тебя так раздражает, попроси его создателя удалить его."
+        )
+
+    await delete_mood(mood_id, user_id)
+    return f"{SYSTEM_EMOJI} Ваш позорный муд удален и больше вас не позорит!"
 
 
 async def handle_del_persona(user_id: int) -> str:
