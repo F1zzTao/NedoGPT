@@ -11,14 +11,15 @@ from vkbottle.bot import Message as VkMessage
 
 import handlers
 from base import UserInfo
+from constants import VK_BOT_ID
 from keyboards_tg import SETTINGS_KBD
 from keyboards_vk import OPEN_SETTINGS_KBD
 from vk_middlewares import DonationMsgMiddleware
 
 load_dotenv()
 
-VK_TOKEN = os.getenv("VK_API_KEY")
-OPENAI_TOKEN = os.getenv("OPENAI_API_KEY")
+VK_TOKEN: str = os.getenv("VK_API_KEY")
+OPENAI_TOKEN: str = os.getenv("OPENAI_API_KEY")
 
 bot = Bot(VK_TOKEN)
 bot.labeler.message_view.register_middleware(DonationMsgMiddleware)
@@ -70,7 +71,7 @@ async def ai_txt_handler(message: VkMessage, query: str):
         reply_user_info = UserInfo(message.reply_message.from_id, reply_full_name)
 
     msg_reply = await handlers.handle_ai(
-        client, query, user_info, reply_user_info, reply_query
+        client, query, user_info, VK_BOT_ID, reply_user_info, reply_query
     )
     await message.reply(msg_reply)
 

@@ -21,9 +21,10 @@ from keyboards_tg import OPEN_SETTINGS_KBD, SETTINGS_KBD
 
 load_dotenv()
 
-DEFAULT_PREFIX = "/"
-TG_TOKEN = os.getenv("TG_API_KEY")
-OPENAI_TOKEN = os.getenv("OPENAI_API_KEY")
+DEFAULT_PREFIX: str = "/"
+TG_TOKEN: str = os.getenv("TG_API_KEY")
+tg_bot_id: str = "0"
+OPENAI_TOKEN: str = os.getenv("OPENAI_API_KEY")
 
 api = API(token=Token(TG_TOKEN))
 bot = Telegrinder(api)
@@ -71,11 +72,10 @@ async def ai_handler(message: Message, query: str):
         reply_full_name = get_full_name(reply_message.from_user)
         reply_user = UserInfo(reply_message.from_user.id, reply_full_name)
 
-    # Telegram has a really limited user and chat info, compared to VK...
     user = UserInfo(message.from_user.id, full_name)
 
     msg_reply = await handlers.handle_ai(
-        client, query, user, reply_user, reply_query
+        client, query, user, tg_bot_id, reply_user, reply_query
     )
     await message.reply(msg_reply)
 
@@ -191,6 +191,13 @@ async def del_account_handler(message: Message):
     return (await handlers.handle_del_account(message.from_user.id))
 
 
+async def set_bot_id():
+    global tg_bot_id
+    bot_info = await bot.api.get_me()
+    tg_bot_id = str(bot_info.unwrap().id)
+
+
 if __name__ == "__main__":
     bot.loop_wrapper.lifespan.on_startup(create_tables())
+    bot.loop_wrapper.lifespan.on_startup(set_bot_id())
     bot.run_forever()

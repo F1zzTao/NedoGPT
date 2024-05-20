@@ -3,7 +3,7 @@ from loguru import logger
 from openai import AsyncOpenAI
 
 from base import Prompt
-from constants import BOT_ID, SEPARATOR_TOKEN
+from constants import SEPARATOR_TOKEN
 
 
 def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:
@@ -13,9 +13,9 @@ def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:
 
 
 async def create_response(
-    client: AsyncOpenAI, prompt: Prompt, model: str = "gpt-3.5-turbo"
+    client: AsyncOpenAI, prompt: Prompt, bot_id: str, model: str = "gpt-3.5-turbo"
 ) -> str:
-    rendered = prompt.full_render(BOT_ID)
+    rendered = prompt.full_render(bot_id)
     logger.info(rendered)
     response = await client.chat.completions.create(
         model=model,

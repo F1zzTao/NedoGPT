@@ -7,7 +7,7 @@ load_dotenv()
 SYSTEM_EMOJI = "⚙️"
 AI_EMOJI = "🤖"
 
-BOT_ID = "-" + os.environ["VK_GROUP_ID"]
+VK_BOT_ID = "-" + os.environ["VK_GROUP_ID"]
 SEPARATOR_TOKEN = "<|endoftext|>"
 BOT_HELP_LINK = "https://github.com/F1zzTao/VkGPTBot#команды"
 

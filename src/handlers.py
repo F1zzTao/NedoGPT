@@ -60,6 +60,7 @@ async def handle_ai(
     client: AsyncOpenAI,
     query: str,
     user: UserInfo,
+    bot_id: int,
     reply_user: UserInfo | None = None,
     reply_query: str | None = None,
 ):
@@ -108,7 +109,7 @@ async def handle_ai(
         ],
         convo=conv
     )
-    response = await ai_stuff.create_response(client, prompt)
+    response = await ai_stuff.create_response(client, prompt, bot_id)
     logger.info(response)
 
     moderated = moderate_result(response)
@@ -354,7 +355,8 @@ async def handle_del_mood(user_id: int, mood_id: int) -> str:
     # ! hardcode
     if mood_id not in user_moods or user_id != 322615766:
         return (
-            f"{SYSTEM_EMOJI} Гений, это не твой муд. Если он тебя так раздражает, попроси его создателя удалить его."
+            f"{SYSTEM_EMOJI} Гений, это не твой муд. Если он тебя так раздражает,"
+            " попроси его создателя удалить его."
         )
 
     await delete_mood(mood_id, user_id)

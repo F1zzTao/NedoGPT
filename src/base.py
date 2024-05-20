@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List
 
-from constants import SEPARATOR_TOKEN
+from constants import AI_EMOJI, SEPARATOR_TOKEN
 
 
 @dataclass(frozen=True)
@@ -74,7 +74,7 @@ class Prompt:
                 yield {
                     "role": "assistant",
                     "name": bot_id,
-                    "content": message.render(incl_full_name=False),
+                    "content": message.render(incl_full_name=False).replace(AI_EMOJI+' ', ''),
                 }
 
 
