@@ -1,7 +1,3 @@
-import os
-
-from dotenv import load_dotenv
-from openai import AsyncOpenAI
 from telegrinder import (
     API,
     CallbackQuery,
@@ -16,19 +12,15 @@ from telegrinder.types import User
 
 import handlers
 from base import UserInfo
+from constants import TG_TOKEN, openai_client
 from db import create_tables
 from keyboards_tg import OPEN_SETTINGS_KBD, SETTINGS_KBD
 
-load_dotenv()
-
 DEFAULT_PREFIX: str = "/"
-TG_TOKEN: str = os.getenv("TG_API_KEY")
 tg_bot_id: str = "0"
-OPENAI_TOKEN: str = os.getenv("OPENAI_API_KEY")
 
 api = API(token=Token(TG_TOKEN))
 bot = Telegrinder(api)
-client = AsyncOpenAI(api_key=OPENAI_TOKEN)
 
 
 def get_full_name(user: User):
@@ -75,7 +67,7 @@ async def ai_handler(message: Message, query: str):
     user = UserInfo(message.from_user.id, full_name)
 
     msg_reply = await handlers.handle_ai(
-        client, query, user, tg_bot_id, reply_user, reply_query
+        openai_client, query, user, tg_bot_id, reply_user, reply_query
     )
     await message.reply(msg_reply)
 
@@ -146,13 +138,17 @@ async def create_mood_info_handler(_: Message):
 
 @bot.on.message(Markup(["/создать муд <instr>", "/новый муд <instr>"]))
 async def create_mood_handler(message: Message, instr: str):
-    return (await handlers.handle_create_mood(client, message.from_user.id, instr, DEFAULT_PREFIX))
+    return (await handlers.handle_create_mood(
+        openai_client, message.from_user.id, instr, DEFAULT_PREFIX)
+    )
 
 
 @bot.on.message(Markup("/муд <params_str>"))
 async def edit_mood_handler(message: Message, params_str: str):
     return (
-        await handlers.handle_edit_mood(client, message.from_user.id, params_str, DEFAULT_PREFIX)
+        await handlers.handle_edit_mood(
+            openai_client, message.from_user.id, params_str, DEFAULT_PREFIX
+        )
     )
 
 
@@ -168,7 +164,7 @@ async def persona_info_handler(_: Message):
 
 @bot.on.message(Text(["/persona <persona>", "/персона <persona>"]))
 async def persona_handler(message: Message, persona: str):
-    return (await handlers.handle_set_persona(client, message.from_user.id, persona))
+    return (await handlers.handle_set_persona(openai_client, message.from_user.id, persona))
 
 
 @bot.on.message(Text(["/mypersona", "/моя персона"]))

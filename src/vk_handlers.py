@@ -1,8 +1,4 @@
-import os
-
-from dotenv import load_dotenv
 from loguru import logger
-from openai import AsyncOpenAI
 from vkbottle import Keyboard
 from vkbottle import KeyboardButtonColor as Color
 from vkbottle import Text
@@ -11,20 +7,14 @@ from vkbottle.bot import Message as VkMessage
 
 import handlers
 from base import UserInfo
-from constants import VK_BOT_ID
+from constants import VK_BOT_ID, VK_TOKEN, openai_client
 from keyboards_tg import SETTINGS_KBD
 from keyboards_vk import OPEN_SETTINGS_KBD
 from vk_middlewares import DonationMsgMiddleware
 
-load_dotenv()
-
-VK_TOKEN: str = os.getenv("VK_API_KEY")
-OPENAI_TOKEN: str = os.getenv("OPENAI_API_KEY")
-
 bot = Bot(VK_TOKEN)
 bot.labeler.message_view.register_middleware(DonationMsgMiddleware)
 bot.labeler.vbml_ignore_case = True
-client = AsyncOpenAI(api_key=OPENAI_TOKEN)
 
 
 @bot.on.message(text=("начать", "!начать"))
@@ -71,7 +61,7 @@ async def ai_txt_handler(message: VkMessage, query: str):
         reply_user_info = UserInfo(message.reply_message.from_id, reply_full_name)
 
     msg_reply = await handlers.handle_ai(
-        client, query, user_info, VK_BOT_ID, reply_user_info, reply_query
+        openai_client, query, user_info, VK_BOT_ID, reply_user_info, reply_query
     )
     await message.reply(msg_reply)
 
@@ -131,12 +121,12 @@ async def create_mood_info_handler(_: VkMessage):
 
 @bot.on.message(text=("!создать муд <instr>", "!новый муд <instr>"))
 async def create_mood_handler(message: VkMessage, instr: str | None = None):
-    return (await handlers.handle_create_mood(client, message.from_id, instr))
+    return (await handlers.handle_create_mood(openai_client, message.from_id, instr))
 
 
 @bot.on.message(text="!муд <params_str>")
 async def edit_mood_handler(message: VkMessage, params_str: str):
-    return (await handlers.handle_edit_mood(client, message.from_id, params_str))
+    return (await handlers.handle_edit_mood(openai_client, message.from_id, params_str))
 
 
 @bot.on.message(text="!мои муды")
@@ -151,7 +141,7 @@ async def persona_info_handler(_: VkMessage):
 
 @bot.on.message(text="!персона <instr>")
 async def set_persona_handler(message: VkMessage, instr: str):
-    return (await handlers.handle_set_persona(client, message.from_id, instr))
+    return (await handlers.handle_set_persona(openai_client, message.from_id, instr))
 
 
 @bot.on.message(text="!моя персона")
