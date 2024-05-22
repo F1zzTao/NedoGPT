@@ -1,6 +1,6 @@
 import aiosqlite
 
-from constants import DB_PATH
+from constants import DB_PATH, VK_ADMIN_ID
 
 DEFAULT_CUSTOM_MOOD = "You're a helpful AI assistant in a group chat. Speak user's language."
 DEFAULT_CUSTOM_MOOD_DESC = (
@@ -22,9 +22,9 @@ SQL_PUBLIC_MOODS_TABLE = '''CREATE TABLE IF NOT EXISTS pub_moods (
     desc TEXT,
     instructions TEXT NOT NULL
 );'''
-SQL_CREATE_CUSTOM_MOOD = '''INSERT INTO pub_moods (
+SQL_CREATE_CUSTOM_MOOD = f'''INSERT INTO pub_moods (
     mood_id, user_id, visibility, name, desc, instructions
-) VALUES (0, 322615766, 1, 'Ассистент', ?, ?);'''
+) VALUES (0, {VK_ADMIN_ID}, 1, 'Ассистент', ?, ?);'''
 SQL_NEW_USER_QUERY = '''INSERT INTO users (user_id) VALUES (?);'''
 SQL_DELETE_USER_QUERY = '''DELETE FROM users WHERE user_id=?;'''
 
@@ -171,5 +171,7 @@ async def delete_mood(mood_id: int, user_id: int):
         user_moods = result[0].split(',')
         user_moods.remove(str(mood_id))
         user_moods = ','.join(user_moods)
-        await db.execute("UPDATE users SET created_moods_ids=? WHERE user_id=?", (user_moods, user_id))
+        await db.execute(
+            "UPDATE users SET created_moods_ids=? WHERE user_id=?", (user_moods, user_id)
+        )
         await db.commit()

@@ -5,7 +5,13 @@ from openai import AsyncOpenAI
 
 import ai_stuff
 from base import Conversation, Message, Prompt, UserInfo
-from constants import AI_EMOJI, HELP_MSG, SYSTEM_BOT_PROMPT, SYSTEM_EMOJI
+from constants import (
+    AI_EMOJI,
+    HELP_MSG,
+    SYSTEM_BOT_PROMPT,
+    SYSTEM_EMOJI,
+    VK_ADMIN_ID
+)
 from db import (
     create_account,
     create_mood,
@@ -149,8 +155,7 @@ async def handle_mood_list() -> str:
 
 async def mood_exists(user_id: int, mood_id: int) -> str | Row:
     mood = await get_mood(mood_id)
-    # ! hardcode
-    if not mood or (mood[2] == 0 and mood[1] not in (user_id, 322615766)):
+    if not mood or (mood[2] == 0 and mood[1] not in (user_id, VK_ADMIN_ID)):
         return f"{SYSTEM_EMOJI} Айди с таким мудом не существует или он приватный!"
     return mood
 
@@ -206,7 +211,7 @@ async def handle_create_mood(client: AsyncOpenAI, user_id: str, instr: str, cp: 
         return fail_reason
 
     user_moods = await get_user_created_moods(user_id)
-    if len(user_moods) >= 10 and user_id != 322615766:  # ! hardcoded
+    if len(user_moods) >= 10 and user_id != VK_ADMIN_ID:
         return f"{SYSTEM_EMOJI} Вы не можете создать больше 10 мудов!"
 
     # Creating mood
@@ -352,8 +357,7 @@ async def handle_del_mood(user_id: int, mood_id: int) -> str:
     if not (await is_registered(user_id)):
         return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
     user_moods = await get_user_created_moods(user_id)
-    # ! hardcode
-    if mood_id not in user_moods or user_id != 322615766:
+    if mood_id not in user_moods or user_id != VK_ADMIN_ID:
         return (
             f"{SYSTEM_EMOJI} Гений, это не твой муд. Если он тебя так раздражает,"
             " попроси его создателя удалить его."
