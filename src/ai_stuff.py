@@ -6,14 +6,14 @@ from base import Prompt
 from constants import SEPARATOR_TOKEN
 
 
-def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:
+def num_tokens_from_string(string: str, model: str = "gpt-4o") -> int:
     encoding = tiktoken.encoding_for_model(model)
     num_tokens = len(encoding.encode(string, disallowed_special=()))
     return num_tokens
 
 
 async def create_response(
-    client: AsyncOpenAI, prompt: Prompt, bot_id: str, model: str = "gpt-3.5-turbo"
+    client: AsyncOpenAI, prompt: Prompt, bot_id: str, model: str = "gpt-4o"
 ) -> str:
     logger.info(f"Selected model: {model}")
     rendered = prompt.full_render(bot_id)

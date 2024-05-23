@@ -72,6 +72,7 @@ async def process_instructions(
 
 
 async def moderate_query(query: str, client: AsyncOpenAI | None = None) -> str | None:
+    # ? We're counting gpt-4o tokens, however, models may be different.
     num_tokens = ai_stuff.num_tokens_from_string(query)
     if num_tokens > 4000:
         return (

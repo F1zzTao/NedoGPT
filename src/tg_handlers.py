@@ -49,7 +49,7 @@ async def tokenize_handler(message: Message, query: str | None = None):
     if reply_message:
         query = query or reply_message.text.unwrap_or_none()
 
-    return handlers.handle_tokenize(query)
+    return (await handlers.handle_tokenize(message.from_user.id, query))
 
 
 @bot.on.message(Markup(["/ai <query>", "/gpt3 <query>"]))

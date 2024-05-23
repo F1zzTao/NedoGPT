@@ -33,7 +33,7 @@ async def count_tokens_handler(message: VkMessage, query: str | None = None):
     if message.reply_message:
         query = query or message.reply_message.text
 
-    return handlers.handle_tokenize(query)
+    return (await handlers.handle_tokenize(message.from_id, query))
 
 
 @bot.on.message(text=('!ai <query>', '!gpt3 <query>'))

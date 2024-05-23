@@ -52,11 +52,12 @@ def handle_help() -> str:
     return HELP_MSG
 
 
-def handle_tokenize(query: str | None = None) -> str:
+async def handle_tokenize(user_id: int, query: str | None = None) -> str:
     if query is None:
         return f"{SYSTEM_EMOJI} Эээ... А что токенизировать то?"
 
-    num_tokens = ai_stuff.num_tokens_from_string(query)
+    user_model = (await get_user_model(user_id))[1]
+    num_tokens = ai_stuff.num_tokens_from_string(query, user_model)
 
     ending = ('' if num_tokens == 1 else 'а' if num_tokens < 5 else 'ов')
     cost = num_tokens/1000*0.0015
@@ -367,7 +368,7 @@ async def handle_my_persona(user_id: int) -> str:
 
 async def handle_models_list() -> str:
     msg = f"{SYSTEM_EMOJI} Вот все текущие доступные модели:"
-    for i, model_id in enumerate(MODEL_IDS, 1):
+    for model_id in MODEL_IDS:
         model = MODEL_IDS[model_id].split(':')
         msg += f"\n• {model[1]} ({model[0]}) - id: {model_id}"
     msg += "\n\nВыбрать модель можно с помощью команды \"!модель <её айди>\""
