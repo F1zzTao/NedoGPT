@@ -8,6 +8,7 @@ from base import Conversation, Message, Prompt, UserInfo
 from constants import (
     AI_EMOJI,
     HELP_MSG,
+    MODEL_IDS,
     SYSTEM_BOT_PROMPT,
     SYSTEM_EMOJI,
     VK_ADMIN_ID
@@ -20,6 +21,7 @@ from db import (
     get_all_moods,
     get_mood,
     get_user_created_moods,
+    get_user_model,
     get_user_mood,
     get_value,
     is_registered,
@@ -29,7 +31,7 @@ from db import (
 from utils import moderate_query, moderate_result, process_instructions
 
 
-async def handle_start(user_id: int) -> tuple[str, bool]:
+async def handle_start(user_id: int, platform: str) -> tuple[str, bool]:
     # bool means if kbd should be returned ot not
     if user_id < 0:
         # ? Does TG works the same way?
@@ -42,7 +44,7 @@ async def handle_start(user_id: int) -> tuple[str, bool]:
         # Person is already registered
         return (f"{SYSTEM_EMOJI} Гений, у тебя уже есть аккаунт в боте. Смирись с этим.", False)
 
-    await create_account(user_id)
+    await create_account(user_id, platform)
     return (f"{SYSTEM_EMOJI} Аккаунт готов; теперь вы можете настраивать поведение бота!", True)
 
 
@@ -95,6 +97,9 @@ async def handle_ai(
         # Defaulting to assistant mood
         user_mood = await get_mood(0)
 
+    user_model: list[str, str] = await get_user_model(user.user_id)
+    user_model_name = user_model[1]
+
     user_mood_instr = user_mood[5]
     mood_instr = await process_instructions(
         user_mood_instr,
@@ -115,7 +120,7 @@ async def handle_ai(
         ],
         convo=conv
     )
-    response = await ai_stuff.create_response(client, prompt, bot_id)
+    response = await ai_stuff.create_response(client, prompt, bot_id, user_model_name)
     logger.info(response)
 
     moderated = moderate_result(response)
@@ -137,7 +142,14 @@ async def handle_settings(user_id: int) -> tuple[str, bool]:
     mood_id = user_mood[0]
     mood_name = user_mood[3]
 
-    return (f"{SYSTEM_EMOJI} Текущий муд: {mood_name} (id: {mood_id})", True)
+    user_model = await get_user_model(user_id)
+    model_by, model_name = user_model
+
+    return (
+        f"{SYSTEM_EMOJI} | Текущий муд: {mood_name} (id: {mood_id})\n"
+        f"🤖 | Текущая модель: {model_name} ({model_by})",
+        True
+    )
 
 
 async def handle_mood_list() -> str:
@@ -351,6 +363,27 @@ async def handle_my_persona(user_id: int) -> str:
     else:
         msg = f"{SYSTEM_EMOJI} У вас ещё не установлена персона!"
     return msg
+
+
+async def handle_models_list() -> str:
+    msg = f"{SYSTEM_EMOJI} Вот все текущие доступные модели:"
+    for i, model_id in enumerate(MODEL_IDS, 1):
+        model = MODEL_IDS[model_id].split(':')
+        msg += f"\n• {model[1]} ({model[0]}) - id: {model_id}"
+    msg += "\n\nВыбрать модель можно с помощью команды \"!модель <её айди>\""
+    return msg
+
+
+async def handle_set_model(user_id: int, model_id: int) -> str:
+    selected_model_str = MODEL_IDS.get(model_id)
+    if selected_model_str is None:
+        return f"{SYSTEM_EMOJI} Модели с таким айди пока не существует!"
+    await update_value(user_id, "selected_model_id", model_id)
+
+    selected_model = selected_model_str.split(':')
+    return (
+        f"{SYSTEM_EMOJI} Вы успешно установили модель {selected_model[1]} ({selected_model[0]})!"
+    )
 
 
 async def handle_del_mood(user_id: int, mood_id: int) -> str:

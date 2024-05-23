@@ -1,6 +1,6 @@
 import aiosqlite
 
-from constants import DB_PATH, VK_ADMIN_ID
+from constants import DB_PATH, MODEL_IDS, VK_ADMIN_ID
 
 DEFAULT_CUSTOM_MOOD = "You're a helpful AI assistant in a group chat. Speak user's language."
 DEFAULT_CUSTOM_MOOD_DESC = (
@@ -10,9 +10,11 @@ DEFAULT_CUSTOM_MOOD_DESC = (
 SQL_USERS_TABLE = '''CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY NOT NULL,
     user_id INT NOT NULL,
+    platform TEXT NOT NULL,
     selected_mood_id INT NOT NULL DEFAULT 0,
     created_moods_ids TEXT,
-    persona TEXT
+    persona TEXT,
+    selected_model_id INT NOT NULL DEFAULT 1
 );'''
 SQL_PUBLIC_MOODS_TABLE = '''CREATE TABLE IF NOT EXISTS pub_moods (
     mood_id INTEGER PRIMARY KEY NOT NULL,
@@ -25,7 +27,7 @@ SQL_PUBLIC_MOODS_TABLE = '''CREATE TABLE IF NOT EXISTS pub_moods (
 SQL_CREATE_CUSTOM_MOOD = f'''INSERT INTO pub_moods (
     mood_id, user_id, visibility, name, desc, instructions
 ) VALUES (0, {VK_ADMIN_ID}, 1, 'Ассистент', ?, ?);'''
-SQL_NEW_USER_QUERY = '''INSERT INTO users (user_id) VALUES (?);'''
+SQL_NEW_USER_QUERY = '''INSERT INTO users (user_id, platform) VALUES (?, ?);'''
 SQL_DELETE_USER_QUERY = '''DELETE FROM users WHERE user_id=?;'''
 
 
@@ -48,9 +50,9 @@ async def create_tables() -> None:
             await db.commit()
 
 
-async def create_account(user_id: int) -> None:
+async def create_account(user_id: int, platform: str) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(SQL_NEW_USER_QUERY, (user_id,))
+        await db.execute(SQL_NEW_USER_QUERY, (user_id, platform))
         await db.commit()
 
 
@@ -92,6 +94,16 @@ async def get_value(user_id: int, key: str):
         return result[0]
 
 
+async def get_user_model(user_id: int) -> list[str, str]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT selected_model_id FROM users WHERE user_id=?;", (user_id,)
+        ) as cur:
+            result = await cur.fetchone()
+    selected_model_id = result[0]
+    return MODEL_IDS[selected_model_id].split(':')
+
+
 async def get_all_moods(public_only: bool = False):
     query = "SELECT * FROM pub_moods"
     if public_only:
@@ -107,7 +119,7 @@ async def get_all_moods(public_only: bool = False):
 async def get_mood(mood_id):
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
-            "SELECT * FROM pub_moods WHERE mood_id=?",
+            "SELECT * FROM pub_moods WHERE mood_id=?;",
             (mood_id,)
         ) as cur:
             result = await cur.fetchone()
@@ -147,7 +159,7 @@ async def create_mood(user_id: int, name: str, instructions: str) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
             "INSERT INTO pub_moods (user_id, name, instructions)"
-            " VALUES (?, ?, ?)",
+            " VALUES (?, ?, ?);",
             (user_id, name, instructions)
         ) as cur:
             await db.commit()
@@ -156,13 +168,13 @@ async def create_mood(user_id: int, name: str, instructions: str) -> int:
 
 async def update_mood_value(mood_id: int, key: str, value):
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(f"UPDATE pub_moods SET {key}=? WHERE mood_id=?", (value, mood_id))
+        await db.execute(f"UPDATE pub_moods SET {key}=? WHERE mood_id=?;", (value, mood_id))
         await db.commit()
 
 
 async def delete_mood(mood_id: int, user_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM pub_moods WHERE mood_id=?", (mood_id,))
+        await db.execute("DELETE FROM pub_moods WHERE mood_id=?;", (mood_id,))
         async with db.execute(
             "SELECT created_moods_ids FROM users WHERE user_id=?;",
             (user_id,)
@@ -172,6 +184,6 @@ async def delete_mood(mood_id: int, user_id: int):
         user_moods.remove(str(mood_id))
         user_moods = ','.join(user_moods)
         await db.execute(
-            "UPDATE users SET created_moods_ids=? WHERE user_id=?", (user_moods, user_id)
+            "UPDATE users SET created_moods_ids=? WHERE user_id=?;", (user_moods, user_id)
         )
         await db.commit()

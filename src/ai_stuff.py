@@ -15,6 +15,7 @@ def num_tokens_from_string(string: str, model: str = "gpt-3.5-turbo") -> int:
 async def create_response(
     client: AsyncOpenAI, prompt: Prompt, bot_id: str, model: str = "gpt-3.5-turbo"
 ) -> str:
+    logger.info(f"Selected model: {model}")
     rendered = prompt.full_render(bot_id)
     logger.info(rendered)
     response = await client.chat.completions.create(

@@ -8,8 +8,7 @@ from vkbottle.bot import Message as VkMessage
 import handlers
 from base import UserInfo
 from constants import VK_BOT_ID, VK_TOKEN, openai_client
-from keyboards_tg import SETTINGS_KBD
-from keyboards_vk import OPEN_SETTINGS_KBD
+from keyboards_vk import OPEN_SETTINGS_KBD, SETTINGS_KBD
 from vk_middlewares import DonationMsgMiddleware
 
 bot = Bot(VK_TOKEN)
@@ -19,7 +18,7 @@ bot.labeler.vbml_ignore_case = True
 
 @bot.on.message(text=("начать", "!начать"))
 async def start_handler(message: VkMessage):
-    msg_reply = await handlers.handle_start(message.from_id)
+    msg_reply = await handlers.handle_start(message.from_id, "vk")
     kbd = (OPEN_SETTINGS_KBD if msg_reply[1] else None)
     await message.answer(msg_reply[0], keyboard=kbd)
 
@@ -147,6 +146,16 @@ async def set_persona_handler(message: VkMessage, instr: str):
 @bot.on.message(text="!моя персона")
 async def my_persona_handler(message: VkMessage):
     return (await handlers.handle_my_persona(message.from_id))
+
+
+@bot.on.message(text="!модели")
+async def model_list_handler(_: VkMessage):
+    return (await handlers.handle_models_list())
+
+
+@bot.on.message(text=("!модель <model_id_user:int>", "!выбрать модель <model_id_user:int>"))
+async def set_model_handler(message: VkMessage, model_id_user: int):
+    return (await handlers.handle_set_model(message.from_id, model_id_user))
 
 
 @bot.on.message(text="!удалить муд <mood_id:int>")

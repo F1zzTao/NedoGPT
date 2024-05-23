@@ -6,6 +6,10 @@ from openai import AsyncOpenAI
 load_dotenv()
 
 OPENAI_TOKEN: str = os.getenv("OPENAI_API_KEY")
+MODEL_IDS = {
+    1: "OpenAI:gpt-4o",
+    2: "OpenAI:gpt-3.5-turbo"
+}
 openai_client = AsyncOpenAI(api_key=OPENAI_TOKEN)
 
 VK_TOKEN = os.getenv("VK_API_KEY")

@@ -33,7 +33,7 @@ def get_full_name(user: User):
 
 @bot.on.message(Text(["/начать", "/start"]))
 async def start_handler(message: Message):
-    msg_reply = await handlers.handle_start(message.from_user.id)
+    msg_reply = await handlers.handle_start(message.from_user.id, "tg")
     kbd = (OPEN_SETTINGS_KBD if msg_reply[1] else None)
     await message.answer(msg_reply[0], reply_markup=kbd)
 
@@ -91,6 +91,11 @@ async def list_mood_handler(_: Message):
     return (await handlers.handle_mood_list())
 
 
+@bot.on.callback_query(CallbackDataEq("change_gpt_mood_info"))
+async def list_mood_callback_handler(_: CallbackQuery):
+    return (await handlers.handle_mood_list())
+
+
 @bot.on.message(Markup(["/mood <mood_id:int>", "/муд <mood_id:int>"]))
 async def mood_info_handler(message: Message, mood_id: int):
     mood = await handlers.mood_exists(message.from_user.id, mood_id)
@@ -143,7 +148,7 @@ async def create_mood_handler(message: Message, instr: str):
     )
 
 
-@bot.on.message(Markup("/муд <params_str>"))
+@bot.on.message(Markup(["/mood <params_str>", "/муд <params_str>"]))
 async def edit_mood_handler(message: Message, params_str: str):
     return (
         await handlers.handle_edit_mood(
@@ -172,6 +177,16 @@ async def my_persona_handler(message: Message):
     return (await handlers.handle_my_persona(message.from_user.id))
 
 
+@bot.on.message(Text(["/models", "/модели"]))
+async def model_list_handler(_: Message):
+    return (await handlers.handle_models_list())
+
+
+@bot.on.message(Markup(["/model <model_id_user:int>", "/модель <model_id_user:int>"]))
+async def set_model_handler(message: Message, model_id_user: int):
+    return (await handlers.handle_set_model(message.from_user.id, model_id_user))
+
+
 @bot.on.message(Markup(["/deletemood <mood_id:int>", "/удалить муд <mood_id:int>"]))
 async def del_mood_handler(message: Message, mood_id: int):
     return (await handlers.handle_del_mood(message.from_user.id, mood_id))
@@ -185,6 +200,11 @@ async def del_persona_handler(message: Message):
 @bot.on.message(Text(["/deletegpt", "/удалить гпт"]))
 async def del_account_handler(message: Message):
     return (await handlers.handle_del_account(message.from_user.id))
+
+
+@bot.on.callback_query(CallbackDataEq("delete_account"))
+async def del_account_callback_handler(cb: CallbackQuery):
+    return (await handlers.handle_del_account(cb.from_user.id))
 
 
 async def set_bot_id():
