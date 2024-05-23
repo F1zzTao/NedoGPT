@@ -29,7 +29,8 @@ from db import (
     update_value
 )
 from utils import moderate_query, moderate_result, process_instructions
-
+from vkbottle import (Keyboard,
+                      Text)
 
 async def handle_start(user_id: int, platform: str) -> tuple[str, bool]:
     # bool means if kbd should be returned ot not
@@ -364,14 +365,18 @@ async def handle_my_persona(user_id: int) -> str:
         msg = f"{SYSTEM_EMOJI} У вас ещё не установлена персона!"
     return msg
 
-
+MODEL_KBD = (
+    Keyboard(inline=True)
+    .add(Text("GPT-3.5-Turbo",{"cmd": "!Модель 1"})
+    .add(Text("GPT-4o",{"cmd": "!Модель 2"})
+)
 async def handle_models_list() -> str:
     msg = f"{SYSTEM_EMOJI} Вот все текущие доступные модели:"
     for i, model_id in enumerate(MODEL_IDS, 1):
         model = MODEL_IDS[model_id].split(':')
         msg += f"\n• {model[1]} ({model[0]}) - id: {model_id}"
     msg += "\n\nВыбрать модель можно с помощью команды \"!модель <её айди>\""
-    return msg
+    return message.reply(msg,keyboard=MODEL_KBD)
 
 
 async def handle_set_model(user_id: int, model_id: int) -> str:
