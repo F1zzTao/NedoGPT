@@ -5,12 +5,13 @@ from openai import AsyncOpenAI
 
 load_dotenv()
 
-OPENAI_TOKEN: str = os.getenv("OPENAI_API_KEY")
 MODEL_IDS = {
     1: "OpenAI:gpt-4o",
     2: "OpenAI:gpt-3.5-turbo"
 }
-openai_client = AsyncOpenAI(api_key=OPENAI_TOKEN)
+OPENAI_TOKEN: str = os.getenv("OPENAI_API_KEY")
+OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL")
+openai_client = AsyncOpenAI(api_key=OPENAI_TOKEN, base_url=OPENAI_BASE_URL)
 
 VK_TOKEN = os.getenv("VK_API_KEY")
 VK_BOT_ID: str = "-" + os.getenv("VK_GROUP_ID")

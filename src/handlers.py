@@ -87,7 +87,14 @@ async def handle_ai(
 
     conversation_text = conv.render(incl_full_name=False)
 
-    fail_reason = await moderate_query(conversation_text, client)
+    user_model: list[str, str] = await get_user_model(user.user_id)
+    model_service, model_name = user_model
+
+    if model_service == "OpenAI":
+        fail_reason = await moderate_query(conversation_text, client)
+    else:
+        fail_reason = await moderate_query(conversation_text)
+
     if fail_reason:
         return fail_reason
 
@@ -97,9 +104,6 @@ async def handle_ai(
         # User is a group or he doesn't have an account
         # Defaulting to assistant mood
         user_mood = await get_mood(0)
-
-    user_model: list[str, str] = await get_user_model(user.user_id)
-    user_model_name = user_model[1]
 
     user_mood_instr = user_mood[5]
     mood_instr = await process_instructions(
@@ -121,7 +125,7 @@ async def handle_ai(
         ],
         convo=conv
     )
-    response = await ai_stuff.create_response(client, prompt, bot_id, user_model_name)
+    response = await ai_stuff.create_response(client, prompt, bot_id, model_name)
     logger.info(response)
 
     moderated = moderate_result(response)
