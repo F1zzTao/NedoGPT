@@ -94,14 +94,15 @@ async def get_value(user_id: int, key: str):
         return result[0]
 
 
-async def get_user_model(user_id: int) -> list[str, str]:
+async def get_user_model(user_id: int) -> list[str, str] | None:
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
             "SELECT selected_model_id FROM users WHERE user_id=?;", (user_id,)
         ) as cur:
             result = await cur.fetchone()
-    selected_model_id = result[0]
-    return MODEL_IDS[selected_model_id].split(':')
+    if result:
+        selected_model_id = result[0]
+        return MODEL_IDS[selected_model_id].split(':')
 
 
 async def get_all_moods(public_only: bool = False):

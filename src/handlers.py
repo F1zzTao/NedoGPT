@@ -7,6 +7,7 @@ import ai_stuff
 from base import Conversation, Message, Prompt, UserInfo
 from constants import (
     AI_EMOJI,
+    DEFAULT_MODEL,
     HELP_MSG,
     MODEL_IDS,
     SYSTEM_BOT_PROMPT,
@@ -56,8 +57,9 @@ async def handle_tokenize(user_id: int, query: str | None = None) -> str:
     if query is None:
         return f"{SYSTEM_EMOJI} Эээ... А что токенизировать то?"
 
-    user_model = (await get_user_model(user_id))[1]
-    num_tokens = ai_stuff.num_tokens_from_string(query, user_model)
+    user_model = await get_user_model(user_id) or DEFAULT_MODEL
+    model_name: str = user_model[1]
+    num_tokens = ai_stuff.num_tokens_from_string(query, model_name)
 
     ending = ('' if num_tokens == 1 else 'а' if num_tokens < 5 else 'ов')
     cost = num_tokens/1000*0.0015
@@ -76,6 +78,8 @@ async def handle_ai(
     conv = Conversation([Message(query, str(user.user_id), user.full_name)])
 
     if reply_user:
+        if reply_query is None:
+            raise ValueError("Reply user is set but reply query is empty")
         reply_full_name = reply_user.full_name or "Anonymous"
         conv.prepend(
             Message(
@@ -87,8 +91,11 @@ async def handle_ai(
 
     conversation_text = conv.render(incl_full_name=False)
 
-    user_model: list[str, str] = await get_user_model(user.user_id)
-    model_service, model_name = user_model
+    user_model: list[str, str] | None = await get_user_model(user.user_id)
+    if user_model:
+        model_service, model_name = user_model
+    else:
+        model_service, model_name = DEFAULT_MODEL
 
     if model_service == "OpenAI":
         fail_reason = await moderate_query(conversation_text, client)
@@ -104,6 +111,9 @@ async def handle_ai(
         # User is a group or he doesn't have an account
         # Defaulting to assistant mood
         user_mood = await get_mood(0)
+
+    if user_mood is None:
+        raise ValueError("Couldn't find specified mood or assistant mood.")
 
     user_mood_instr = user_mood[5]
     mood_instr = await process_instructions(
