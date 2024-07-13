@@ -53,7 +53,7 @@
 `!tokenize <текст>` - показывает, сколько токенов в вашем тексте и сколько такое количество токенов стоит у gpt-4o (примерно). <!--- Replace this once we get it working with multiple models -->
 
 ## 💸 Донат
-- Поддержать меня и бота можно, задонатив через DonationAlerts - [donationalerts.com/r/F1zzTao](https://www.donationalerts.com/r/f1zztao)
+- Поддержать меня и бота можно, задонатив через boosty - [boosty.to/f1zztao/donate](https://boosty.to/f1zztao/donate)
 - Если вы из страны, в котором GitHub Donations не заблокирован, лучше задонатить через него - [github.com/sponsors/F1zzTao](https://github.com/sponsors/F1zzTao)
 - Также можете поддержать меня криптой:
 USDT (TRC20) - TT55NG5akLeqgXo2PtzHMuwCu3Bx2dJZtm
