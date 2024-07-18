@@ -57,8 +57,7 @@ async def handle_tokenize(user_id: int, query: str | None = None) -> str:
     if query is None:
         return f"{SYSTEM_EMOJI} Эээ... А что токенизировать то?"
 
-    user_model = await get_user_model(user_id) or DEFAULT_MODEL
-    model_name: str = user_model[1]
+    model_name = await get_user_model(user_id) or DEFAULT_MODEL['name']
     num_tokens = ai_stuff.num_tokens_from_string(query, model_name)
 
     ending = ('' if num_tokens == 1 else 'а' if num_tokens < 5 else 'ов')
@@ -93,15 +92,11 @@ async def handle_ai(
 
     user_model: list[str, str] | None = await get_user_model(user.user_id)
     if user_model:
-        model_service, model_name = user_model
+        model_name = user_model
     else:
-        model_service, model_name = DEFAULT_MODEL
+        model_name = DEFAULT_MODEL['name']
 
-    if model_service == "OpenAI":
-        fail_reason = await moderate_query(conversation_text, client)
-    else:
-        fail_reason = await moderate_query(conversation_text)
-
+    fail_reason = await moderate_query(conversation_text)
     if fail_reason:
         return fail_reason
 
@@ -138,11 +133,14 @@ async def handle_ai(
     response = await ai_stuff.create_response(client, prompt, bot_id, model_name)
     logger.info(response)
 
+    if not response:
+        return f"{SYSTEM_EMOJI} Ответ от бота был съеден. Все равно он был невкусный."
+
     moderated = moderate_result(response)
     if moderated[0] == 1:
         return moderated[1]
 
-    response = moderated[1]
+    response = moderated[1].strip()
     msg_reply = f"{AI_EMOJI} {response}"
 
     return msg_reply
@@ -158,11 +156,11 @@ async def handle_settings(user_id: int) -> tuple[str, bool]:
     mood_name = user_mood[3]
 
     user_model = await get_user_model(user_id)
-    model_by, model_name = user_model
+    model_name = user_model
 
     return (
         f"{SYSTEM_EMOJI} | Текущий муд: {mood_name} (id: {mood_id})\n"
-        f"🤖 | Текущая модель: {model_name} ({model_by})",
+        f"🤖 | Текущая модель: {model_name}",
         True
     )
 
@@ -233,7 +231,9 @@ async def handle_create_mood(client: AsyncOpenAI, user_id: str, instr: str, cp: 
             f" нужно сначала зарегаться командой \"{cp}начать\"."
         )
 
-    fail_reason = await moderate_query(instr, client)
+    # !!! OPENAI MODERATING IS TEMPORARILY DISABLED
+    # fail_reason = await moderate_query(instr, client)
+    fail_reason = await moderate_query(instr)
     if fail_reason:
         return fail_reason
 
@@ -315,7 +315,7 @@ async def handle_edit_mood(
         success_msg = f"Вы успешно поменяли видимость муда на \"{visibility_status}\""
     elif params[0] == "инструкции":
         mood_instr = ' '.join(params[2:])
-        fail_reason = await moderate_query(mood_instr, client)
+        fail_reason = await moderate_query(mood_instr)
         if fail_reason:
             return fail_reason
 
@@ -383,22 +383,29 @@ async def handle_my_persona(user_id: int) -> str:
 async def handle_models_list() -> str:
     msg = f"{SYSTEM_EMOJI} Вот все текущие доступные модели:"
     for model_id in MODEL_IDS:
-        model = MODEL_IDS[model_id].split(':')
-        msg += f"\n• {model[1]} ({model[0]}) - id: {model_id}"
+        model = MODEL_IDS[model_id]['name']
+        msg += f"\n• {model} - id: {model_id}"
     msg += "\n\nВыбрать модель можно с помощью команды \"!модель <её айди>\""
     return msg
 
 
 async def handle_set_model(user_id: int, model_id: int) -> str:
-    selected_model_str = MODEL_IDS.get(model_id)
-    if selected_model_str is None:
+    selected_model = MODEL_IDS.get(model_id)
+    if selected_model is None:
         return f"{SYSTEM_EMOJI} Модели с таким айди пока не существует!"
+
     await update_value(user_id, "selected_model_id", model_id)
 
-    selected_model = selected_model_str.split(':')
-    return (
-        f"{SYSTEM_EMOJI} Вы успешно установили модель {selected_model[1]} ({selected_model[0]})!"
+    msg = (
+        f"{SYSTEM_EMOJI} Вы успешно установили модель {selected_model['name']}!"
     )
+    if selected_model['bad_russian']:
+        msg += (
+            "\n\n⚠️ Внимание: выбранная модель была в основном натренирована на английских"
+            " данных и с русским работает очень плохо. Рекомендуется использовать английский"
+            " для данной модели."
+        )
+    return msg
 
 
 async def handle_del_mood(user_id: int, mood_id: int) -> str:

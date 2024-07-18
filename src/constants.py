@@ -6,10 +6,29 @@ from openai import AsyncOpenAI
 load_dotenv()
 
 MODEL_IDS = {
-    1: "OpenAI:gpt-4o",
-    2: "OpenAI:gpt-3.5-turbo"
+    1: {
+        "name": "openai/gpt-3.5-turbo",
+        "bad_russian": False,
+    },
+    2: {
+        "name": "openai/gpt-4o",
+        "bad_russian": False,
+    },
+    3: {
+        "name": "microsoft/wizardlm-2-7b",
+        "bad_russian": True,
+    },
+    4: {
+        "name": "google/gemma-2-9b-it:free",
+        "bad_russian": True,
+    },
+    5: {
+        "name": "anthropic/claude-3.5-sonnet:beta",
+        "bad_russian": False,
+    }
 }
-DEFAULT_MODEL: list = ["OpenAI", "gpt-3.5-turbo"]
+# The first model from MODEL_IDS will be a default model
+DEFAULT_MODEL: str = MODEL_IDS[1]
 OPENAI_TOKEN: str = os.getenv("OPENAI_API_KEY")
 OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL")
 openai_client = AsyncOpenAI(api_key=OPENAI_TOKEN, base_url=OPENAI_BASE_URL)
@@ -53,7 +72,7 @@ DONATION_MSG: str = (
     " поддержите его здесь:"
     " https://github.com/F1zzTao/VkGPTBot?tab=readme-ov-file#-%D0%B4%D0%BE%D0%BD%D0%B0%D1%82"
 )
-DONATION_MSG_CHANCE: float = 0.05
+DONATION_MSG_CHANCE: float = 0.01
 
 MAX_IMAGE_WIDTH: int = 750
 

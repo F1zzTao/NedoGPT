@@ -13,19 +13,24 @@ def num_tokens_from_string(string: str, model: str = "gpt-4o") -> int:
 
 
 async def create_response(
-    client: AsyncOpenAI, prompt: Prompt, bot_id: str | int, model: str = "gpt-4o"
+    client: AsyncOpenAI, prompt: Prompt, bot_id: str | int, model: str = "openai/gpt-4o"
 ) -> str:
     logger.info(f"Selected model: {model}")
     bot_id = str(bot_id)
     rendered = prompt.full_render(bot_id)
     logger.info(rendered)
     response = await client.chat.completions.create(
+        extra_headers={
+            "HTTP-Referer": "https://vk.com/public205906217",
+            "X-Title": "VkGPTBot",
+        },
         model=model,
         messages=rendered,
         max_tokens=1000,
         stop=[SEPARATOR_TOKEN],
     )
-    return response.choices[0].message.content
+    if response.choices:
+        return response.choices[0].message.content
 
 
 async def moderate(client: AsyncOpenAI, query: str) -> tuple:

@@ -102,7 +102,7 @@ async def get_user_model(user_id: int) -> list[str, str] | None:
             result = await cur.fetchone()
     if result:
         selected_model_id = result[0]
-        return MODEL_IDS[selected_model_id].split(':')
+        return MODEL_IDS[selected_model_id]['name']
 
 
 async def get_all_moods(public_only: bool = False):
