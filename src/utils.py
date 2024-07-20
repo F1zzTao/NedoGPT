@@ -1,7 +1,5 @@
 import re
 
-from loguru import logger
-from openai import AsyncOpenAI
 from vkbottle.bot import Message
 from vkbottle_types.objects import (
     MessagesMessageAttachmentType,
@@ -71,9 +69,10 @@ async def process_instructions(
     return new_instructions
 
 
-async def moderate_query(query: str, client: AsyncOpenAI | None = None) -> str | None:
-    # ? We're counting gpt-4o tokens, however, models may be different.
-    num_tokens = ai_stuff.num_tokens_from_string(query)
+async def moderate_query(query: str) -> str | None:
+    # We're counting gpt-4o tokens, however, models may be different.
+    # Keep that in mind.
+    num_tokens = ai_stuff.num_tokens_from_string(query, "gpt-4o")
     if num_tokens > 4000:
         return (
             f"{SYSTEM_EMOJI} В сообщении более 4000"
@@ -86,19 +85,6 @@ async def moderate_query(query: str, client: AsyncOpenAI | None = None) -> str |
     if any(ban_word in query.lower() for ban_word in BAN_WORDS):
         return f"{SYSTEM_EMOJI} Попробуй поговорить о чем-то другом. Поможет в развитии."
 
-    if client is not None:
-        try:
-            flagged = await ai_stuff.moderate(client, query)
-        except Exception as e:
-            logger.error(f"Couldn't moderate text: {e}")
-            return f"{SYSTEM_EMOJI} Произошла ошибка во время модерации текста: {e}"
-
-        if flagged[0] is True:
-            return (
-                f"{SYSTEM_EMOJI} Бан, бан, бан...\n"
-                f"Запрос нарушает правила OpenAI: {flagged[1]}"
-            )
-
 
 def moderate_result(query: str) -> tuple[int, str]:
     # Remove links
@@ -109,7 +95,7 @@ def moderate_result(query: str) -> tuple[int, str]:
         return (
             1,
             f"{SYSTEM_EMOJI} В результате оказалось слово из черного списка."
-            " Спасибо, что потратил мои 0.0020 центов."
+            " Спасибо, что потратил мои 0.002 центов."
         )
 
     for censor in CENSOR_WORDS:

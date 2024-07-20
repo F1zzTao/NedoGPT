@@ -43,15 +43,6 @@ async def help_handler(_: Message):
     return handlers.handle_help()
 
 
-@bot.on.message(Markup(["/tokenize <query>", "/tokenize"]))
-async def tokenize_handler(message: Message, query: str | None = None):
-    reply_message = message.reply_to_message.unwrap_or_none()
-    if reply_message:
-        query = query or reply_message.text.unwrap_or_none()
-
-    return (await handlers.handle_tokenize(message.from_user.id, query))
-
-
 @bot.on.message(Markup(["/ai <query>", "/gpt3 <query>"]))
 async def ai_handler(message: Message, query: str):
     full_name = get_full_name(message.from_user)
@@ -144,7 +135,7 @@ async def create_mood_info_handler(_: Message):
 @bot.on.message(Markup(["/создать муд <instr>", "/новый муд <instr>"]))
 async def create_mood_handler(message: Message, instr: str):
     return (await handlers.handle_create_mood(
-        openai_client, message.from_user.id, instr, DEFAULT_PREFIX)
+        message.from_user.id, instr, DEFAULT_PREFIX)
     )
 
 
@@ -152,7 +143,7 @@ async def create_mood_handler(message: Message, instr: str):
 async def edit_mood_handler(message: Message, params_str: str):
     return (
         await handlers.handle_edit_mood(
-            openai_client, message.from_user.id, params_str, DEFAULT_PREFIX
+            message.from_user.id, params_str, DEFAULT_PREFIX
         )
     )
 
@@ -169,7 +160,7 @@ async def persona_info_handler(_: Message):
 
 @bot.on.message(Text(["/persona <persona>", "/персона <persona>"]))
 async def persona_handler(message: Message, persona: str):
-    return (await handlers.handle_set_persona(openai_client, message.from_user.id, persona))
+    return (await handlers.handle_set_persona(message.from_user.id, persona))
 
 
 @bot.on.message(Text(["/mypersona", "/моя персона"]))
@@ -179,7 +170,7 @@ async def my_persona_handler(message: Message):
 
 @bot.on.message(Text(["/models", "/модели"]))
 async def model_list_handler(_: Message):
-    return (await handlers.handle_models_list())
+    return (await handlers.handle_models_list(DEFAULT_PREFIX))
 
 
 @bot.on.message(Markup(["/model <model_id_user:int>", "/модель <model_id_user:int>"]))
@@ -198,13 +189,18 @@ async def del_persona_handler(message: Message):
 
 
 @bot.on.message(Text(["/deletegpt", "/удалить гпт"]))
-async def del_account_handler(message: Message):
-    return (await handlers.handle_del_account(message.from_user.id))
+async def del_account_warning_handler(message: Message):
+    return (await handlers.handle_del_account_warning(message.from_user.id))
 
 
 @bot.on.callback_query(CallbackDataEq("delete_account"))
-async def del_account_callback_handler(cb: CallbackQuery):
-    return (await handlers.handle_del_account(cb.from_user.id))
+async def del_account_warning_callback_handler(cb: CallbackQuery):
+    return (await handlers.handle_del_account_warning(cb.from_user.id))
+
+
+@bot.on.message(Text(["/deletegptsure", "/точно удалить гпт"]))
+async def del_account_handler(message: Message):
+    return (await handlers.handle_del_account(message.from_user.id))
 
 
 async def set_bot_id():

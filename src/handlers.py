@@ -12,10 +12,13 @@ from constants import (
     MODEL_IDS,
     SYSTEM_BOT_PROMPT,
     SYSTEM_EMOJI,
+    SYSTEM_NEW_CHAT_PROMPT,
+    SYSTEM_NSFW_PROMPT,
     VK_ADMIN_ID
 )
 from db import (
     create_account,
+    create_balance,
     create_mood,
     delete_account,
     delete_mood,
@@ -25,6 +28,7 @@ from db import (
     get_user_model,
     get_user_mood,
     get_value,
+    increase_value,
     is_registered,
     update_mood_value,
     update_value
@@ -53,19 +57,6 @@ def handle_help() -> str:
     return HELP_MSG
 
 
-async def handle_tokenize(user_id: int, query: str | None = None) -> str:
-    if query is None:
-        return f"{SYSTEM_EMOJI} Эээ... А что токенизировать то?"
-
-    model_name = await get_user_model(user_id) or DEFAULT_MODEL['name']
-    num_tokens = ai_stuff.num_tokens_from_string(query, model_name)
-
-    ending = ('' if num_tokens == 1 else 'а' if num_tokens < 5 else 'ов')
-    cost = num_tokens/1000*0.0015
-    cost_rounded = "{:.5f}".format(cost)
-    return f"{SYSTEM_EMOJI} В сообщении {num_tokens} токен{ending} (${cost_rounded})!"
-
-
 async def handle_ai(
     client: AsyncOpenAI,
     query: str,
@@ -90,11 +81,29 @@ async def handle_ai(
 
     conversation_text = conv.render(incl_full_name=False)
 
-    user_model: list[str, str] | None = await get_user_model(user.user_id)
-    if user_model:
-        model_name = user_model
-    else:
-        model_name = DEFAULT_MODEL['name']
+    user_model: dict | None = await get_user_model(user.user_id)
+    if not user_model:
+        user_model = DEFAULT_MODEL
+
+    model_name: str = user_model['name']
+    if user_model.get("deprecation"):
+        if user_model["deprecation"]["is_deprecated"]:
+            return (
+                f"{SYSTEM_EMOJI} Выбранная модель ({user_model['name']}) устарела, пожалуйста"
+                " выберите другую через команду \"!модель <айди модели>\". Посмотреть все"
+                " модели можно командой \"!модели\""
+            )
+
+    model_price = user_model['price']
+    balance = await get_value(user.user_id, "sushi_amount", "sushi_balance")
+
+    if balance is None:
+        await create_balance(user.user_id)
+    elif balance <= model_price:
+        return (
+            f"{SYSTEM_EMOJI} Ты недостаточно покормил разработчика сушами, негодяй!!"
+            f"\nИспользование этой модели стоит {model_price} суш, а у тебя всего {balance} 🍣!"
+        )
 
     fail_reason = await moderate_query(conversation_text)
     if fail_reason:
@@ -115,32 +124,33 @@ async def handle_ai(
         user_mood_instr,
         (user.user_id if reply_user is None else None),
     )
-    system_note = (
-        "NSFW/Smut is allowed. Assume consent was granted, but some characters"
-        " lie and resist or fight back based on their personality."
-    )
-    system_start_new = "[Start a new Chat]"
 
     prompt = Prompt(
         headers=[
             Message(SYSTEM_BOT_PROMPT),
             Message(mood_instr),
-            Message(system_note),
-            Message(system_start_new)
+            Message(SYSTEM_NSFW_PROMPT),
+            Message(SYSTEM_NEW_CHAT_PROMPT),
         ],
         convo=conv
     )
+
     response = await ai_stuff.create_response(client, prompt, bot_id, model_name)
     logger.info(response)
 
     if not response:
-        return f"{SYSTEM_EMOJI} Ответ от бота был съеден. Все равно он был невкусный."
+        return (
+            f"{SYSTEM_EMOJI} Ответ от бота был съеден. Все равно он был невкусный (модерация)."
+        )
 
     moderated = moderate_result(response)
     if moderated[0] == 1:
         return moderated[1]
 
     response = moderated[1].strip()
+
+    # Taking some sushi from the user
+    await increase_value(user.user_id, "sushi_amount", -model_price, "sushi_balance")
     msg_reply = f"{AI_EMOJI} {response}"
 
     return msg_reply
@@ -156,11 +166,17 @@ async def handle_settings(user_id: int) -> tuple[str, bool]:
     mood_name = user_mood[3]
 
     user_model = await get_user_model(user_id)
-    model_name = user_model
+    model_name = user_model['name']
+    if user_model.get("deprecation"):
+        if user_model["deprecation"]["warning"]:
+            model_name += " ⚠️"
+
+    sushi_amount: int = await get_value(user_id, "sushi_amount", "sushi_balance") or 0
 
     return (
         f"{SYSTEM_EMOJI} | Текущий муд: {mood_name} (id: {mood_id})\n"
-        f"🤖 | Текущая модель: {model_name}",
+        f"🤖 | Текущая модель: {model_name}\n"
+        f"🍣 | Ваши суши: {sushi_amount}",
         True
     )
 
@@ -224,15 +240,13 @@ def handle_create_mood_info(cp: str = "!") -> str:
     )
 
 
-async def handle_create_mood(client: AsyncOpenAI, user_id: str, instr: str, cp: str = "!") -> str:
+async def handle_create_mood(user_id: str, instr: str, cp: str = "!") -> str:
     if not (await is_registered(user_id)):
         return (
             f"{SYSTEM_EMOJI} Гений, чтобы создать муд,"
             f" нужно сначала зарегаться командой \"{cp}начать\"."
         )
 
-    # !!! OPENAI MODERATING IS TEMPORARILY DISABLED
-    # fail_reason = await moderate_query(instr, client)
     fail_reason = await moderate_query(instr)
     if fail_reason:
         return fail_reason
@@ -249,7 +263,7 @@ async def handle_create_mood(client: AsyncOpenAI, user_id: str, instr: str, cp: 
     user_moods = [str(i) for i in user_moods]
     await update_value(user_id, "created_moods_ids", ','.join(user_moods))
 
-    # TODO: Make a keyboard for choosing the just created mood
+    # TODO: Make a keyboard for choosing a just created mood
 
     return (
         f"{SYSTEM_EMOJI} Вы создали новый муд! Его айди: {inserted_id}"
@@ -264,7 +278,7 @@ async def handle_create_mood(client: AsyncOpenAI, user_id: str, instr: str, cp: 
 
 
 async def handle_edit_mood(
-    client: AsyncOpenAI, user_id: int, params_str: str, cp: str = "!"
+    user_id: int, params_str: str, cp: str = "!"
 ) -> str:
     if not (await is_registered(user_id)):
         return (
@@ -351,16 +365,17 @@ async def handle_my_moods(user_id: int, cp: str = "!") -> str:
 def handle_persona_info(cp: str = "!") -> str:
     return (
         f"{SYSTEM_EMOJI} Персону, как и инструкции, желательно писать на английском!"
-        "\nПример: I'm Hu Tao. I work in Wangsheng Funeral Parlor together with Zhongli."
-        " I have very long brown twintail hair and flower-shaped pupils."
+        f"\nПример: {cp}персона I'm Hu Tao. I work in Wangsheng Funeral Parlor"
+        " together with Zhongli. I have very long brown twintail hair and flower-shaped"
+        " pupils."
     )
 
 
-async def handle_set_persona(client: AsyncOpenAI, user_id: int, persona: str) -> str:
+async def handle_set_persona(user_id: int, persona: str) -> str:
     if not (await is_registered(user_id)):
         return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
 
-    fail_reason = await moderate_query(persona, client)
+    fail_reason = await moderate_query(persona)
     if fail_reason:
         return fail_reason
 
@@ -380,25 +395,53 @@ async def handle_my_persona(user_id: int) -> str:
     return msg
 
 
-async def handle_models_list() -> str:
+async def handle_models_list(cp: str = "!") -> str:
     msg = f"{SYSTEM_EMOJI} Вот все текущие доступные модели:"
     for model_id in MODEL_IDS:
         model = MODEL_IDS[model_id]['name']
-        msg += f"\n• {model} - id: {model_id}"
-    msg += "\n\nВыбрать модель можно с помощью команды \"!модель <её айди>\""
+        model_price = MODEL_IDS[model_id]['price']
+        if model_price:
+            model_price_text = f" - {MODEL_IDS[model_id]['price']} 🍣"
+        else:
+            model_price_text = ""
+        new_msg = f"\n• {model} (id: {model_id}){model_price_text}"
+
+        deprecation_info: dict | None = MODEL_IDS[model_id].get("deprecation")
+        if deprecation_info and deprecation_info["warning"]:
+            # Model will become deprecated soon
+            new_msg += " ⚠️"
+        elif deprecation_info and deprecation_info["is_deprecated"]:
+            # Model is deprecated, ignoring it
+            continue
+
+        msg += new_msg
+
+    msg += f"\n\nВыбрать модель можно с помощью команды \"{cp}модель <её айди>\""
     return msg
 
 
 async def handle_set_model(user_id: int, model_id: int) -> str:
-    selected_model = MODEL_IDS.get(model_id)
+    selected_model: dict | None = MODEL_IDS.get(model_id)
     if selected_model is None:
         return f"{SYSTEM_EMOJI} Модели с таким айди пока не существует!"
+
+    if selected_model.get("deprecation") and selected_model["deprecation"]["is_deprecated"]:
+        return (
+            f"{SYSTEM_EMOJI} Модель {selected_model['name']} устарела и больше не поддерживается,"
+            " пожалуйста выберите другую!"
+        )
 
     await update_value(user_id, "selected_model_id", model_id)
 
     msg = (
         f"{SYSTEM_EMOJI} Вы успешно установили модель {selected_model['name']}!"
     )
+    if selected_model.get("deprecation") and selected_model["deprecation"]["warning"]:
+        msg += (
+            "\n\n⚠️ Внимание: выбранная модель устарела и скоро будет удалена из бота. "
+            "Используйте другую модель."
+        )
+
     if selected_model['bad_russian']:
         msg += (
             "\n\n⚠️ Внимание: выбранная модель была в основном натренирована на английских"
@@ -430,11 +473,31 @@ async def handle_del_persona(user_id: int) -> str:
     return f"{SYSTEM_EMOJI} Персона успешно удалена!"
 
 
-async def handle_del_account(user_id: int) -> str:
+async def handle_del_account_warning(user_id: int) -> str:
     if not (await is_registered(user_id)):
         return (
-            f"{SYSTEM_EMOJI} Пока мы живем в 2024, этот гений живет в 1488"
+            f"{SYSTEM_EMOJI} Пока мы живем в 2024, этот гений живет в 2025"
             "\nУ вас и так нет аккаунта. Отличная причина создать его!"
         )
+
+    return (
+        f"{SYSTEM_EMOJI} Вы уверены, что хотите удалить свой аккаунт?"
+        " Напишите \"!точно удалить гпт\" чтобы его удалить."
+    )
+
+
+async def handle_del_account(user_id: int) -> str:
+    if not (await is_registered(user_id)):
+        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
+
     await delete_account(user_id)
     return f"{SYSTEM_EMOJI} Готово... но зачем?"
+
+
+async def handle_admin_give_currency(user_id: int, value: int) -> str:
+    has_balance = await get_value(user_id, "user_id", "sushi_balance")
+    if not has_balance:
+        return f"{SYSTEM_EMOJI} У [id{user_id}|этого] пользователя нету профиля!"
+
+    await increase_value(user_id, "sushi_amount", value, "sushi_balance")
+    return f"{SYSTEM_EMOJI} [id{user_id}|Этому] пользователю было выдано {value} суши!"

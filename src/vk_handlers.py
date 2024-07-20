@@ -7,7 +7,8 @@ from vkbottle.bot import Message as VkMessage
 
 import handlers
 from base import UserInfo
-from constants import VK_BOT_ID, VK_TOKEN, openai_client
+from constants import VK_ADMIN_ID, VK_BOT_ID, VK_TOKEN, openai_client
+from db import create_tables
 from keyboards_vk import OPEN_SETTINGS_KBD, SETTINGS_KBD
 from vk_middlewares import DonationMsgMiddleware
 
@@ -26,14 +27,6 @@ async def start_handler(message: VkMessage):
 @bot.on.message(text=("!aihelp", "!команды"))
 async def help_handler(_: VkMessage):
     return handlers.handle_help()
-
-
-@bot.on.message(text=("!tokenize", "!tokenize <query>"))
-async def count_tokens_handler(message: VkMessage, query: str | None = None):
-    if message.reply_message:
-        query = query or message.reply_message.text
-
-    return (await handlers.handle_tokenize(message.from_id, query))
 
 
 @bot.on.message(text=('!ai <query>', '!gpt3 <query>'))
@@ -120,12 +113,12 @@ async def create_mood_info_handler(_: VkMessage):
 
 @bot.on.message(text=("!создать муд <instr>", "!новый муд <instr>"))
 async def create_mood_handler(message: VkMessage, instr: str | None = None):
-    return (await handlers.handle_create_mood(openai_client, message.from_id, instr))
+    return (await handlers.handle_create_mood(message.from_id, instr))
 
 
 @bot.on.message(text="!муд <params_str>")
 async def edit_mood_handler(message: VkMessage, params_str: str):
-    return (await handlers.handle_edit_mood(openai_client, message.from_id, params_str))
+    return (await handlers.handle_edit_mood(message.from_id, params_str))
 
 
 @bot.on.message(text="!мои муды")
@@ -140,7 +133,7 @@ async def persona_info_handler(_: VkMessage):
 
 @bot.on.message(text="!персона <instr>")
 async def set_persona_handler(message: VkMessage, instr: str):
-    return (await handlers.handle_set_persona(openai_client, message.from_id, instr))
+    return (await handlers.handle_set_persona(message.from_id, instr))
 
 
 @bot.on.message(text="!моя персона")
@@ -170,10 +163,31 @@ async def del_persona_handler(message: VkMessage):
 
 @bot.on.message(text="!удалить гпт")
 @bot.on.message(payload={"cmd": "delete_account"})
+async def del_account_warning_handler(message: VkMessage):
+    return (await handlers.handle_del_account_warning(message.from_id))
+
+
+@bot.on.message(text="!точно удалить гпт")
 async def del_account_handler(message: VkMessage):
     return (await handlers.handle_del_account(message.from_id))
 
 
+@bot.on.message(text="!выдать суши <currency_str>")
+async def admin_give_currency_handler(message: VkMessage, currency_str: str):
+    if str(message.from_id) != VK_ADMIN_ID:
+        return
+
+    if not message.reply_message:
+        return "Вы не указали ответ на сообщение."
+    try:
+        currency = int(currency_str)
+    except ValueError:
+        return "Вы указали непавильное количество валюты, укажите число."
+
+    return (await handlers.handle_admin_give_currency(message.reply_message.from_id, currency))
+
+
 if __name__ == "__main__":
     logger.info("Starting VK bot")
+    bot.loop_wrapper.on_startup.append(create_tables())
     bot.run_forever()
