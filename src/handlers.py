@@ -99,11 +99,11 @@ async def handle_ai(
 
     if balance is None:
         await create_balance(user.user_id)
-    elif balance <= model_price:
-        return (
-            f"{SYSTEM_EMOJI} Ты недостаточно покормил разработчика сушами, негодяй!!"
-            f"\nИспользование этой модели стоит {model_price} суш, а у тебя всего {balance} 🍣!"
-        )
+    # elif balance <= model_price:
+    #     return (
+    #         f"{SYSTEM_EMOJI} Ты недостаточно покормил разработчика сушами, негодяй!!"
+    #         f"\nИспользование этой модели стоит {model_price} суш, а у тебя всего {balance} 🍣!"
+    #     )
 
     fail_reason = await moderate_query(conversation_text)
     if fail_reason:
@@ -150,7 +150,7 @@ async def handle_ai(
     response = moderated[1].strip()
 
     # Taking some sushi from the user
-    await increase_value(user.user_id, "sushi_amount", -model_price, "sushi_balance")
+    # await increase_value(user.user_id, "sushi_amount", -model_price, "sushi_balance")
     msg_reply = f"{AI_EMOJI} {response}"
 
     return msg_reply

@@ -9,7 +9,7 @@ MODEL_IDS = {
     1: {
         "name": "openai/gpt-3.5-turbo",
         "bad_russian": False,
-        "price": 30,
+        "price": 4,
         "deprecation": {
             "warning": True,
             "is_deprecated": False,
@@ -18,7 +18,7 @@ MODEL_IDS = {
     2: {
         "name": "openai/gpt-4o-mini",
         "bad_russian": False,
-        "price": 20,
+        "price": 2,
     },
     3: {
         "name": "microsoft/wizardlm-2-7b",
@@ -33,8 +33,13 @@ MODEL_IDS = {
     5: {
         "name": "anthropic/claude-3.5-sonnet:beta",
         "bad_russian": False,
-        "price": 10,
-    }
+        "price": 3,
+    },
+    6: {
+        "name": "sao10k/l3-stheno-8b",
+        "bad_russian": True,
+        "price": 1,
+    },
 }
 # The first model from MODEL_IDS will be a default model
 DEFAULT_MODEL: str = MODEL_IDS[2]
