@@ -4,6 +4,7 @@ from typing import List
 import aiofiles
 import yaml
 from jinja2.sandbox import ImmutableSandboxedEnvironment
+from unidecode import unidecode
 
 from constants import AI_EMOJI, INSTRUCTION_TEMPLATES_PATH, SEPARATOR_TOKEN
 
@@ -16,8 +17,9 @@ class Message:
 
     def render(self, incl_full_name: bool = True):
         result = self.text
-        if self.full_name and incl_full_name:
-            result = self.full_name + ": " + result
+        full_name = unidecode(self.full_name)
+        if full_name and incl_full_name:
+            result = full_name + ": " + result
         return result
 
 
