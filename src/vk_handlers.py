@@ -7,7 +7,7 @@ from vkbottle.bot import Message as VkMessage
 
 import handlers
 from base import UserInfo
-from constants import VK_ADMIN_ID, VK_BOT_ID, VK_TOKEN, openai_client
+from constants import VK_ADMIN_ID, VK_BOT_ID, VK_TOKEN
 from db import create_tables
 from keyboards_vk import OPEN_SETTINGS_KBD, SETTINGS_KBD
 from vk_middlewares import DonationMsgMiddleware
@@ -53,7 +53,7 @@ async def ai_txt_handler(message: VkMessage, query: str):
         reply_user_info = UserInfo(message.reply_message.from_id, reply_full_name)
 
     msg_reply = await handlers.handle_ai(
-        openai_client, query, user_info, VK_BOT_ID, reply_user_info, reply_query
+        query, user_info, VK_BOT_ID, reply_user_info, reply_query
     )
     await message.reply(msg_reply)
 

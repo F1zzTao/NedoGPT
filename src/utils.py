@@ -60,13 +60,12 @@ async def process_instructions(
     instructions: str,
     user_id: int | None = None,
 ) -> str:
-    new_instructions = instructions
     if user_id:
         user_persona = await get_value(user_id, "persona")
         if user_persona:
-            new_instructions += '\n'+SYSTEM_USER_PROMPT.format(user_persona)
+            instructions = instructions+"\n"+SYSTEM_USER_PROMPT.format(user_persona)
 
-    return new_instructions
+    return instructions
 
 
 async def moderate_query(query: str) -> str | None:

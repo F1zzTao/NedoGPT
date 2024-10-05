@@ -12,7 +12,7 @@ from telegrinder.types import User
 
 import handlers
 from base import UserInfo
-from constants import TG_TOKEN, openai_client
+from constants import TG_TOKEN
 from db import create_tables
 from keyboards_tg import OPEN_SETTINGS_KBD, SETTINGS_KBD
 
@@ -58,7 +58,7 @@ async def ai_handler(message: Message, query: str):
     user = UserInfo(message.from_user.id, full_name)
 
     msg_reply = await handlers.handle_ai(
-        openai_client, query, user, tg_bot_id, reply_user, reply_query
+        query, user, tg_bot_id, reply_user, reply_query
     )
     await message.reply(msg_reply)
 

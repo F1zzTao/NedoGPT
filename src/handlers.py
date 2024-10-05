@@ -1,19 +1,17 @@
 from sqlite3 import Row
 
 from loguru import logger
-from openai import AsyncOpenAI
 
 import ai_stuff
 from base import Conversation, Message, Prompt, UserInfo
 from constants import (
     AI_EMOJI,
-    DEFAULT_MODEL,
     HELP_MSG,
     MODEL_IDS,
+    OPENAI_BASE_URL,
+    OPENROUTER_HEADERS,
     SYSTEM_BOT_PROMPT,
     SYSTEM_EMOJI,
-    SYSTEM_NEW_CHAT_PROMPT,
-    SYSTEM_NSFW_PROMPT,
     VK_ADMIN_ID
 )
 from db import (
@@ -58,7 +56,6 @@ def handle_help() -> str:
 
 
 async def handle_ai(
-    client: AsyncOpenAI,
     query: str,
     user: UserInfo,
     bot_id: int,
@@ -83,13 +80,16 @@ async def handle_ai(
 
     user_model: dict | None = await get_user_model(user.user_id)
     if not user_model:
-        user_model = DEFAULT_MODEL
+        return (
+            f"{SYSTEM_EMOJI} Ваша выбранная модель была удалена! Выберите другую."
+            "\nПосмотреть все модели можно командой \"!модели\"."
+        )
 
     model_name: str = user_model['name']
     if user_model.get("deprecation"):
         if user_model["deprecation"]["is_deprecated"]:
             return (
-                f"{SYSTEM_EMOJI} Выбранная модель ({user_model['name']}) устарела, пожалуйста"
+                f"{SYSTEM_EMOJI} Выбранная модель ({user_model['name']}) устарела. Пожалуйста,"
                 " выберите другую через команду \"!модель <айди модели>\". Посмотреть все"
                 " модели можно командой \"!модели\""
             )
@@ -125,17 +125,25 @@ async def handle_ai(
         (user.user_id if reply_user is None else None),
     )
 
+    system_prompt = SYSTEM_BOT_PROMPT+'\n'+mood_instr
+
     prompt = Prompt(
         headers=[
-            Message(SYSTEM_BOT_PROMPT),
-            Message(mood_instr),
-            Message(SYSTEM_NSFW_PROMPT),
-            Message(SYSTEM_NEW_CHAT_PROMPT),
+            Message(system_prompt),
         ],
         convo=conv
     )
 
-    response = await ai_stuff.create_response(client, prompt, bot_id, model_name)
+    messages_rendered = None
+    prompt_rendered = None
+    if user_model['template']:
+        prompt_rendered = await prompt.full_render_template(str(bot_id), user_model['template'])
+    else:
+        messages_rendered = prompt.full_render(str(bot_id))
+
+    response = await ai_stuff.create_response(
+        OPENROUTER_HEADERS, OPENAI_BASE_URL, messages_rendered, prompt_rendered, model_name
+    )
     logger.info(response)
 
     if not response:
@@ -407,12 +415,12 @@ async def handle_models_list(cp: str = "!") -> str:
         new_msg = f"\n• {model} (id: {model_id}){model_price_text}"
 
         deprecation_info: dict | None = MODEL_IDS[model_id].get("deprecation")
+        if deprecation_info and deprecation_info["is_deprecated"]:
+            # Model is deprecated, ignoring it
+            continue
         if deprecation_info and deprecation_info["warning"]:
             # Model will become deprecated soon
             new_msg += " ⚠️"
-        elif deprecation_info and deprecation_info["is_deprecated"]:
-            # Model is deprecated, ignoring it
-            continue
 
         msg += new_msg
 
