@@ -69,13 +69,13 @@ MODEL_IDS = {
     },
     10: {
         "name": "mistralai/mistral-7b-instruct:free",
-        "template": "Llama-v3",
+        "template": "Mistral",
         "bad_russian": False,
         "price": 0,
     },
     11: {
         "name": "sophosympatheia/midnight-rose-70b",
-        "template": "Llama-v3",
+        "template": "Mistral",
         "bad_russian": False,
         "price": 3,
     }
