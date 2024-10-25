@@ -83,8 +83,9 @@ async def list_mood_handler(_: Message):
 
 
 @bot.on.callback_query(CallbackDataEq("change_gpt_mood_info"))
-async def list_mood_callback_handler(_: CallbackQuery):
-    return (await handlers.handle_mood_list())
+async def list_mood_callback_handler(cb: CallbackQuery):
+    msg = await handlers.handle_mood_list()
+    await cb.answer(msg)
 
 
 @bot.on.message(Markup(["/mood <mood_id:int>", "/муд <mood_id:int>"]))

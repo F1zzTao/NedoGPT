@@ -17,8 +17,8 @@ class Message:
 
     def render(self, incl_full_name: bool = True):
         result = self.text
-        full_name = unidecode(self.full_name)
-        if full_name and incl_full_name:
+        if self.full_name and incl_full_name:
+            full_name = unidecode(self.full_name)
             result = full_name + ": " + result
         return result
 

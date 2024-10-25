@@ -58,13 +58,13 @@ MODEL_IDS = {
     8: {
         "name": "meta-llama/llama-3.2-3b-instruct:free",
         "template": "Llama-v3",
-        "bad_russian": False,
+        "bad_russian": True,
         "price": 0,
     },
     9: {
         "name": "meta-llama/llama-3.2-11b-vision-instruct:free",
         "template": "Llama-v3",
-        "bad_russian": False,
+        "bad_russian": True,
         "price": 0,
     },
     10: {
@@ -78,7 +78,13 @@ MODEL_IDS = {
         "template": "Mistral",
         "bad_russian": False,
         "price": 3,
-    }
+    },
+    12: {
+        "name": "meta-llama/llama-3.1-70b-instruct:free",
+        "template": "Llama-v3",
+        "bad_russian": True,
+        "price": 0,
+    },
 }
 # The first model from MODEL_IDS will be a default model
 DEFAULT_MODEL: str = MODEL_IDS[2]
@@ -135,7 +141,7 @@ DONATION_MSG_CHANCE: float = 0.01
 
 MAX_IMAGE_WIDTH: int = 750
 
-BAN_WORDS: tuple = ("hitler", "гитлер", "gitler", "ниггер", "негр", "vto.pe", "vtope",)
+BAN_WORDS: tuple = ("vto.pe", "vtope",)
 AI_BAN_WORDS: tuple = ("синий кит", "сова никогда не спит",)
 CENSOR_WORDS: tuple = ("onion", "hitler", "vtope", "vto.pe", "vto pe",)
 
