@@ -20,7 +20,7 @@ SQL_USERS_TABLE = '''CREATE TABLE IF NOT EXISTS users (
     selected_mood_id INT NOT NULL DEFAULT 0,
     created_moods_ids TEXT,
     persona TEXT,
-    selected_model_id INT NOT NULL DEFAULT 1
+    selected_model_id INT NOT NULL DEFAULT 2
 );'''
 SQL_BALANCE_TABLE = '''CREATE TABLE IF NOT EXISTS sushi_balance (
     id INTEGER PRIMARY KEY NOT NULL,

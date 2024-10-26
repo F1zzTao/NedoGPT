@@ -79,10 +79,10 @@ async def handle_ai(
     conversation_text = conv.render(incl_full_name=False)
 
     user_model: dict | None = await get_user_model(user.user_id)
-    if not user_model:
+    if user_model is None:
         return (
-            f"{SYSTEM_EMOJI} Ваша выбранная модель была удалена! Выберите другую."
-            "\nПосмотреть все модели можно командой \"!модели\"."
+            f"{SYSTEM_EMOJI} У вас нет аккаунта! Аккаунт в этом боте можно создать,"
+            " написав команду \"!начать\""
         )
 
     model_name: str = user_model['name']
