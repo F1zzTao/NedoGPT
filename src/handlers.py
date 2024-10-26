@@ -204,7 +204,8 @@ async def handle_mood_list() -> str:
 
 async def mood_exists(user_id: int, mood_id: int) -> str | Row:
     mood = await get_mood(mood_id)
-    if not mood or (mood[2] == 0 and mood[1] not in (user_id, VK_ADMIN_ID)):
+    if not mood or (mood[2] == 0 and mood[1] not in (str(user_id), VK_ADMIN_ID)):
+        # If this mood doesn't exists or it's private...
         return f"{SYSTEM_EMOJI} Айди с таким мудом не существует или он приватный!"
     return mood
 
@@ -248,7 +249,7 @@ def handle_create_mood_info(cp: str = "!") -> str:
     )
 
 
-async def handle_create_mood(user_id: str, instr: str, cp: str = "!") -> str:
+async def handle_create_mood(user_id: int, instr: str, cp: str = "!") -> str:
     if not (await is_registered(user_id)):
         return (
             f"{SYSTEM_EMOJI} Гений, чтобы создать муд,"
@@ -260,7 +261,7 @@ async def handle_create_mood(user_id: str, instr: str, cp: str = "!") -> str:
         return fail_reason
 
     user_moods = await get_user_created_moods(user_id)
-    if len(user_moods) >= 10 and user_id != VK_ADMIN_ID:
+    if len(user_moods) >= 10 and str(user_id) != VK_ADMIN_ID:
         return f"{SYSTEM_EMOJI} Вы не можете создать больше 10 мудов!"
 
     # Creating mood
@@ -463,7 +464,7 @@ async def handle_del_mood(user_id: int, mood_id: int) -> str:
     if not (await is_registered(user_id)):
         return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
     user_moods = await get_user_created_moods(user_id)
-    if mood_id not in user_moods or user_id != VK_ADMIN_ID:
+    if mood_id not in user_moods or str(user_id) != VK_ADMIN_ID:
         return (
             f"{SYSTEM_EMOJI} Гений, это не твой муд. Если он тебя так раздражает,"
             " попроси его создателя удалить его."
@@ -488,10 +489,22 @@ async def handle_del_account_warning(user_id: int) -> str:
             "\nУ вас и так нет аккаунта. Отличная причина создать его!"
         )
 
-    return (
+    msg = (
         f"{SYSTEM_EMOJI} Вы уверены, что хотите удалить свой аккаунт?"
-        " Напишите \"!точно удалить гпт\" чтобы его удалить."
     )
+
+    # ? Perhaps there's a better approach to handling account deletion when
+    # user has created some moods?
+    user_moods = await get_user_created_moods(user_id)
+    if len(user_moods) > 0:
+        msg += (
+            f"\nВы создали муды ({len(user_moods)}). Удалив аккаунт, вы больше не"
+            " сможете их редактировать, даже после создания нового аккаунта."
+        )
+
+    msg += "\nНапишите \"!точно удалить гпт\" чтобы его удалить."
+
+    return msg
 
 
 async def handle_del_account(user_id: int) -> str:

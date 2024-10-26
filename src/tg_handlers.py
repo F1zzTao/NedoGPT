@@ -43,7 +43,7 @@ async def help_handler(_: Message):
     return handlers.handle_help()
 
 
-@bot.on.message(Markup(["/ai <query>", "/gpt3 <query>"]))
+@bot.on.message(Markup(["/ai <query>", "/gpt <query>"]))
 async def ai_handler(message: Message, query: str):
     full_name = get_full_name(message.from_user)
 

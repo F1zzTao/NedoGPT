@@ -29,7 +29,7 @@ async def help_handler(_: VkMessage):
     return handlers.handle_help()
 
 
-@bot.on.message(text=('!ai <query>', '!gpt3 <query>'))
+@bot.on.message(text=('!ai <query>', '!gpt <query>', '.ai <query>'))
 async def ai_txt_handler(message: VkMessage, query: str):
     full_name = "Anonymous"
 
