@@ -62,7 +62,7 @@ MODEL_IDS = {
         "price": 0,
     },
     9: {
-        "name": "meta-llama/llama-3.2-11b-vision-instruct:free",
+        "name": "meta-llama/llama-3.1-8b-instruct:free",
         "template": "Llama-v3",
         "bad_russian": True,
         "price": 0,
@@ -85,6 +85,12 @@ MODEL_IDS = {
         "bad_russian": True,
         "price": 0,
     },
+    13: {
+        "name": "eva-unit-01/eva-qwen-2.5-72b",
+        "template": "ChatML",
+        "bad_russian": True,
+        "price": 3,
+    }
 }
 # The first model from MODEL_IDS will be a default model
 DEFAULT_MODEL: str = MODEL_IDS[2]
