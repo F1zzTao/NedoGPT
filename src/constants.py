@@ -90,6 +90,18 @@ MODEL_IDS = {
         "template": "ChatML",
         "bad_russian": True,
         "price": 3,
+    },
+    13: {
+        "name": "deepseek/deepseek-r1",
+        "template": None,
+        "bad_russian": False,
+        "price": 4,
+    },
+    14: {
+        "name": "google/gemma-2-27b-it",
+        "template": None,
+        "bad_russian": False,
+        "price": 2,
     }
 }
 # The first model from MODEL_IDS will be a default model
