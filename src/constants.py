@@ -91,13 +91,13 @@ MODEL_IDS = {
         "bad_russian": True,
         "price": 3,
     },
-    13: {
+    14: {
         "name": "deepseek/deepseek-r1",
         "template": None,
         "bad_russian": False,
         "price": 4,
     },
-    14: {
+    15: {
         "name": "google/gemma-2-27b-it",
         "template": None,
         "bad_russian": False,
