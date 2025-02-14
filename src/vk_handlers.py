@@ -57,7 +57,7 @@ async def ai_txt_handler(message: VkMessage, query: str):
         query, user_info, VK_BOT_ID, reply_user_info, reply_query
     )
     await message.ctx_api.messages.edit(
-        oeer_id=message.peer_id, cmid=wait_msg.conversation_message_id, message=msg_reply
+        peer_id=message.peer_id, cmid=wait_msg.conversation_message_id, message=msg_reply
     )
 
 
