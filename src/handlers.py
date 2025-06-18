@@ -6,6 +6,7 @@ import ai_stuff
 from base import Conversation, Message, Prompt, UserInfo
 from constants import (
     AI_EMOJI,
+    DEFAULT_MODEL_ID,
     HELP_MSG,
     MODELS,
     OPENAI_BASE_URL,
@@ -63,7 +64,19 @@ async def handle_ai(
     reply_user: UserInfo | None = None,
     reply_query: str | None = None,
 ):
-    conv = Conversation([Message(query, str(user.user_id), user.full_name)])
+    if not (await is_registered(user.user_id)):
+        return (
+            f"{SYSTEM_EMOJI} У вас нет аккаунта! Аккаунт в этом боте можно создать,"
+            " написав команду \"!начать\""
+        )
+    conv = Conversation(
+        [
+            Message(
+                query,
+                str(user.user_id), user.full_name
+            )
+        ]
+    )
 
     if reply_user:
         if reply_query is None:
@@ -81,9 +94,17 @@ async def handle_ai(
 
     user_model: dict | None = await get_user_model(user.user_id)
     if user_model is None:
+        logger.warning(f"User {user.user_id}'s model doesn't exist anymore, fallback to default")
+        default_model = find_model(MODELS, DEFAULT_MODEL_ID)
+        if default_model is None:
+            default_model = {"name": "???"}
+        default_model_name = default_model["name"]
+        await update_value(user.user_id, "selected_model_id", DEFAULT_MODEL_ID)
         return (
-            f"{SYSTEM_EMOJI} У вас нет аккаунта! Аккаунт в этом боте можно создать,"
-            " написав команду \"!начать\""
+            f"{SYSTEM_EMOJI} Каким-то образом, модели, которая у вас сейчас установлена, больше"
+            " не существует в боте. Мы автоматически поменяли её на модель по умолчанию"
+            f" ({default_model_name})."
+            "\nПопробуйте ввести команду ещё раз, или выберите другую модель в списке \"!модели\""
         )
 
     model_name: str = user_model['name']
@@ -165,12 +186,17 @@ async def handle_ai(
 
 async def handle_settings(user_id: int) -> tuple[str, bool]:
     if not (await is_registered(user_id)):
-        return (f"{SYSTEM_EMOJI} Для этого надо зарегестрироваться!", False)
+        return (f"{SYSTEM_EMOJI} Для этого нужен аккаунт!", False)
 
     user_mood = await get_user_mood(user_id)
     logger.info(user_mood)
-    mood_id = user_mood[0]
-    mood_name = user_mood[3]
+    if not user_mood:
+        mood_id = 727727  # yup, that's osu! reference
+        mood_name = "???"
+        logger.warning(f"Couldnt' find {user_id}'s mood")
+    else:
+        mood_id = user_mood[0]
+        mood_name = user_mood[3]
 
     user_model = await get_user_model(user_id)
     if not user_model:
@@ -434,6 +460,9 @@ async def handle_models_list(cp: str = "!") -> str:
 
 
 async def handle_set_model(user_id: int, model_id: int) -> str:
+    if not (await is_registered(user_id)):
+        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
+
     selected_model: dict | None = find_model(MODELS, model_id)
     if selected_model is None:
         return f"{SYSTEM_EMOJI} Модели с таким айди пока не существует!"

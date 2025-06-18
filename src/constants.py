@@ -36,7 +36,7 @@ if not TG_TOKEN:
 MODELS: list[dict] = CONFIG["models"]
 
 # Default model is set after registration
-DEFAULT_MODEL: str = CONFIG["default_model_id"]
+DEFAULT_MODEL_ID: int = int(CONFIG["default_model_id"])
 
 SYSTEM_EMOJI: str = CONFIG["emojis"]["system"]
 AI_EMOJI: str = CONFIG["emojis"]["ai"]
