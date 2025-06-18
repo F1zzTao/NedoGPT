@@ -5,7 +5,7 @@ from loguru import logger
 from constants import SEPARATOR_TOKEN
 
 
-def num_tokens_from_string(string: str, model: str) -> int:
+def num_tokens_from_string(string: str, model: str = "gpt-4o") -> int:
     encoding = tiktoken.encoding_for_model(model)
     num_tokens = len(encoding.encode(string, disallowed_special=()))
     return num_tokens

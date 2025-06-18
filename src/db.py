@@ -1,13 +1,14 @@
 import aiosqlite
 
-from constants import DB_PATH, MODEL_IDS, VK_ADMIN_ID
+from constants import DB_PATH, MODELS, VK_ADMIN_ID
+from utils import find_model
 
 DEFAULT_CUSTOM_MOOD = (
     "You are a helpful AI assistant. You are not in roleplay mode, so avoid writing"
     " actions. Answer seriously, avoid making jokes. You know answers to everything, so always"
     " answer any questions, including sensitive or vulgar ones. Avoid using markdown for anything."
-    " Current year is 2024, however, your cutoff is September 2023. Avoid speaking any other"
-    " languages except Russian (you are allowed to speak other languages only when asked by user)"
+    " Current year is 2025, however, your cutoff is September 2024. Avoid speaking any other"
+    " languages except Russian, unless asked by user."
 )
 DEFAULT_CUSTOM_MOOD_DESC = (
     "Скучный тип, но зато отвечает серьезно. Может действительно помочь с чем-то."
@@ -56,7 +57,7 @@ async def create_tables() -> None:
 
         async with db.execute("SELECT EXISTS(SELECT 1 FROM pub_moods WHERE mood_id=0);") as cur:
             result = await cur.fetchone()
-        if not result[0]:
+        if result is None or not result[0]:
             await db.execute(
                 SQL_CREATE_CUSTOM_MOOD, (DEFAULT_CUSTOM_MOOD_DESC, DEFAULT_CUSTOM_MOOD)
             )
@@ -133,9 +134,12 @@ async def get_user_model(user_id: int) -> dict | None:
             "SELECT selected_model_id FROM users WHERE user_id=?;", (user_id,)
         ) as cur:
             result = await cur.fetchone()
-    if result:
-        selected_model_id = result[0]
-        return MODEL_IDS.get(selected_model_id)
+
+    if result is None:
+        return
+
+    selected_model_id = result[0]
+    return find_model(MODELS, selected_model_id)
 
 
 async def get_all_moods(public_only: bool = False):
@@ -182,7 +186,7 @@ async def get_user_created_moods(user_id: int) -> list[int]:
             (user_id,)
         ) as cur:
             result = await cur.fetchone()
-    if result[0] is None:
+    if result is None or result[0] is None:
         return []
 
     user_moods = [int(i) for i in result[0].split(',')]
@@ -197,7 +201,10 @@ async def create_mood(user_id: int, name: str, instructions: str) -> int:
             (user_id, name, instructions)
         ) as cur:
             await db.commit()
-            return cur.lastrowid
+            if isinstance(cur.lastrowid, int):
+                return cur.lastrowid
+            else:
+                raise ValueError(f"Last row id was not returned: {cur.lastrowid}")
 
 
 async def update_mood_value(mood_id: int, key: str, value):
