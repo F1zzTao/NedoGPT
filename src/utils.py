@@ -1,24 +1,17 @@
 import re
 
 from vkbottle.bot import Message
-from vkbottle_types.objects import (
-    MessagesMessageAttachmentType,
-    PhotosPhotoSizes
-)
+from vkbottle_types.objects import MessagesMessageAttachmentType, PhotosPhotoSizes
 
 import ai_stuff
 from constants import (
-    AI_BAN_WORDS,
-    BAN_WORDS,
     CENSOR_WORDS,
     MAX_IMAGE_WIDTH,
     SYSTEM_EMOJI,
-    SYSTEM_USER_PROMPT
 )
-from db import get_value
 
 
-def pick_size(sizes: list[PhotosPhotoSizes]) -> str:
+def pick_size(sizes: list[PhotosPhotoSizes]) -> str | None:
     sizes_widths = [photo.width for photo in sizes]
     filtered_sizes = [size for size in sizes_widths if size <= MAX_IMAGE_WIDTH]
 
@@ -43,29 +36,34 @@ def pick_img(message: Message) -> str | None:
         message.attachments and
         message.attachments[0].type is MessagesMessageAttachmentType.PHOTO
     ):
-        sizes = message.attachments[0].photo.sizes
+        photo = message.attachments[0].photo
+        if photo:
+            sizes = photo.sizes
     elif (
         message.reply_message and
         message.reply_message.attachments and
         message.reply_message.attachments[0].type is MessagesMessageAttachmentType.PHOTO
     ):
-        sizes = message.reply_message.attachments[0].photo.sizes
+        photo = message.reply_message.attachments[0].photo
+        if photo:
+            sizes = photo.sizes
 
     if sizes:
         img_url = pick_size(sizes)
     return img_url
 
 
-async def process_instructions(
-    instructions: str,
-    user_id: int | None = None,
+async def process_main_prompt(
+    system_prompt: str,
+    persona_prompt: str,
+    mood: str,
+    persona: str | None,
 ) -> str:
-    if user_id:
-        user_persona = await get_value(user_id, "persona")
-        if user_persona:
-            instructions = instructions+"\n"+SYSTEM_USER_PROMPT.format(user_persona)
+    prompt = system_prompt.replace("{{description}}", mood)
+    if persona:
+        prompt = prompt+"\n\n"+persona_prompt.replace("{{persona}}", persona)
 
-    return instructions
+    return prompt
 
 
 async def moderate_query(query: str) -> str | None:
@@ -81,22 +79,17 @@ async def moderate_query(query: str) -> str | None:
     # Remove links
     query = re.sub(r'\.(?=[^\s])', '. ', query)
 
-    if any(ban_word in query.lower() for ban_word in BAN_WORDS):
-        return f"{SYSTEM_EMOJI} Попробуй поговорить о чем-то другом. Поможет в развитии."
 
-
-def moderate_result(query: str) -> tuple[int, str]:
+def censor_result(query: str) -> str:
     # Remove links
     query = re.sub(r'\.(?=[^\s])', '. ', query)
-    if (
-        any(ban_word in query for ban_word in AI_BAN_WORDS)
-    ):
-        return (
-            1,
-            f"{SYSTEM_EMOJI} В результате оказалось слово из черного списка."
-            " Спасибо, что потратил мои 0.002 центов."
-        )
 
     for censor in CENSOR_WORDS:
         query = query.replace(censor, "***")
-    return (0, query)
+    return query
+
+
+def find_model(models: list[dict], model_id: int) -> dict | None:
+    for model in models:
+        if model["id"] == model_id:
+            return model

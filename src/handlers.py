@@ -7,11 +7,12 @@ from base import Conversation, Message, Prompt, UserInfo
 from constants import (
     AI_EMOJI,
     HELP_MSG,
-    MODEL_IDS,
+    MODELS,
     OPENAI_BASE_URL,
     OPENROUTER_HEADERS,
     SYSTEM_BOT_PROMPT,
     SYSTEM_EMOJI,
+    SYSTEM_USER_PROMPT,
     VK_ADMIN_ID
 )
 from db import (
@@ -31,7 +32,7 @@ from db import (
     update_mood_value,
     update_value
 )
-from utils import moderate_query, moderate_result, process_instructions
+from utils import find_model, moderate_query, censor_result, process_main_prompt
 
 
 async def handle_start(user_id: int, platform: str) -> tuple[str, bool]:
@@ -58,7 +59,7 @@ def handle_help() -> str:
 async def handle_ai(
     query: str,
     user: UserInfo,
-    bot_id: int,
+    bot_id: str,
     reply_user: UserInfo | None = None,
     reply_query: str | None = None,
 ):
@@ -94,7 +95,7 @@ async def handle_ai(
                 " модели можно командой \"!модели\""
             )
 
-    model_price = user_model['price']
+    # model_price = user_model['price']
     balance = await get_value(user.user_id, "sushi_amount", "sushi_balance")
 
     if balance is None:
@@ -120,12 +121,14 @@ async def handle_ai(
         raise ValueError("Couldn't find specified mood or assistant mood.")
 
     user_mood_instr = user_mood[5]
-    mood_instr = await process_instructions(
-        user_mood_instr,
-        (user.user_id if reply_user is None else None),
-    )
+    user_persona = await get_value(user.user_id, "persona")
 
-    system_prompt = SYSTEM_BOT_PROMPT+'\n'+mood_instr
+    system_prompt = await process_main_prompt(
+        system_prompt=SYSTEM_BOT_PROMPT,
+        persona_prompt=SYSTEM_USER_PROMPT,
+        mood=user_mood_instr,
+        persona=user_persona
+    )
 
     prompt = Prompt(
         headers=[
@@ -137,9 +140,9 @@ async def handle_ai(
     messages_rendered = None
     prompt_rendered = None
     if user_model['template']:
-        prompt_rendered = await prompt.full_render_template(str(bot_id), user_model['template'])
+        prompt_rendered = await prompt.full_render_template(bot_id, user_model['template'])
     else:
-        messages_rendered = prompt.full_render(str(bot_id))
+        messages_rendered = prompt.full_render(bot_id)
 
     response = await ai_stuff.create_response(
         OPENROUTER_HEADERS, OPENAI_BASE_URL, messages_rendered, prompt_rendered, model_name
@@ -151,11 +154,7 @@ async def handle_ai(
             f"{SYSTEM_EMOJI} Ответ от бота был съеден. Все равно он был невкусный (модерация)."
         )
 
-    moderated = moderate_result(response)
-    if moderated[0] == 1:
-        return moderated[1]
-
-    response = moderated[1].strip()
+    response = censor_result(response).strip()
 
     # Taking some sushi from the user
     # await increase_value(user.user_id, "sushi_amount", -model_price, "sushi_balance")
@@ -174,6 +173,10 @@ async def handle_settings(user_id: int) -> tuple[str, bool]:
     mood_name = user_mood[3]
 
     user_model = await get_user_model(user_id)
+    if not user_model:
+        user_model = {
+            "name": "???"
+        }
     model_name = user_model['name']
     if user_model.get("deprecation"):
         if user_model["deprecation"]["warning"]:
@@ -406,16 +409,17 @@ async def handle_my_persona(user_id: int) -> str:
 
 async def handle_models_list(cp: str = "!") -> str:
     msg = f"{SYSTEM_EMOJI} Вот все текущие доступные модели:"
-    for model_id in MODEL_IDS:
-        model = MODEL_IDS[model_id]['name']
-        model_price = MODEL_IDS[model_id]['price']
-        if model_price:
-            model_price_text = f" - {MODEL_IDS[model_id]['price']} 🍣"
+    for model in MODELS:
+        model_id = model["id"]
+        model_name = model['name']
+        model_price = model['price']
+        if model_price > 0:
+            model_price_text = f" - {model_price} 🍣"
         else:
             model_price_text = ""
-        new_msg = f"\n• {model} (id: {model_id}){model_price_text}"
+        new_msg = f"\n• {model_name} (id: {model_id}){model_price_text}"
 
-        deprecation_info: dict | None = MODEL_IDS[model_id].get("deprecation")
+        deprecation_info: dict | None = model.get("deprecation")
         if deprecation_info and deprecation_info["is_deprecated"]:
             # Model is deprecated, ignoring it
             continue
@@ -430,7 +434,7 @@ async def handle_models_list(cp: str = "!") -> str:
 
 
 async def handle_set_model(user_id: int, model_id: int) -> str:
-    selected_model: dict | None = MODEL_IDS.get(model_id)
+    selected_model: dict | None = find_model(MODELS, model_id)
     if selected_model is None:
         return f"{SYSTEM_EMOJI} Модели с таким айди пока не существует!"
 

@@ -75,17 +75,16 @@ class Prompt:
 
     def render_messages(self, bot_id: str):
         for message in self.convo.messages:
-            if bot_id not in message.user_id:
+            # `message.user_id` for bots always starts with a `-`
+            if "-"+bot_id == message.user_id:
                 yield {
-                    "role": "user",
-                    "name": message.user_id,
-                    "content": message.render(),
+                    "role": "assistant",
+                    "content": message.render(incl_full_name=False).replace(AI_EMOJI+' ', ''),
                 }
             else:
                 yield {
-                    "role": "assistant",
-                    "name": bot_id,
-                    "content": message.render(incl_full_name=False).replace(AI_EMOJI+' ', ''),
+                    "role": "user",
+                    "content": message.render(),
                 }
 
 

@@ -1,9 +1,9 @@
 from loguru import logger
-from vkbottle import Keyboard
+from vkbottle import Keyboard, Text
 from vkbottle import KeyboardButtonColor as Color
-from vkbottle import Text
 from vkbottle.bot import Bot
 from vkbottle.bot import Message as VkMessage
+from vkbottle_types.objects import UsersUserFull
 
 import handlers
 from base import UserInfo
@@ -14,7 +14,7 @@ from vk_middlewares import DonationMsgMiddleware
 
 bot = Bot(VK_TOKEN)
 bot.labeler.message_view.register_middleware(DonationMsgMiddleware)
-bot.labeler.vbml_ignore_case = True
+bot.labeler.vbml_ignore_case = True  # pyright:ignore
 
 
 @bot.on.message(text=("начать", "!начать"))
@@ -31,11 +31,12 @@ async def help_handler(_: VkMessage):
 
 @bot.on.message(text=('!ai <query>', '!gpt <query>', '.ai <query>'))
 async def ai_txt_handler(message: VkMessage, query: str):
-    full_name = "Anonymous"
+    full_name: str = "Anonymous"
 
     if message.from_id > 0:
-        user = await message.get_user(fields=["bdate", "city", "sex"])
-        full_name = user.first_name + " " + user.last_name
+        user = await message.get_user()
+        if user.first_name and user.last_name:
+            full_name = user.first_name + " " + user.last_name
 
     user_info = UserInfo(message.from_id, full_name)
 
@@ -43,12 +44,14 @@ async def ai_txt_handler(message: VkMessage, query: str):
     reply_query = None
     if message.reply_message:
         reply_query = message.reply_message.text
-        if message.reply_message.from_id < 0:
-            # Reply message is from group
-            reply_full_name = "Anonymous"
-        else:
+        reply_full_name = "Anonymous"
+        if message.reply_message.from_id > 0:
+            # Reply message is not from group
             reply_user = await message.reply_message.get_user()
-            reply_full_name = reply_user.first_name + " " + reply_user.last_name
+
+            if isinstance(reply_user, UsersUserFull):
+                if reply_user.first_name and reply_user.last_name:
+                    reply_full_name = reply_user.first_name + " " + reply_user.last_name
 
         reply_user_info = UserInfo(message.reply_message.from_id, reply_full_name)
 
@@ -107,9 +110,11 @@ async def custom_mood_info(message: VkMessage, mood_id: int):
 @bot.on.message(payload_map=[("set_mood_id", int)])
 async def change_mood_handler(message: VkMessage, mood_id: int | None = None):
     payload = message.get_payload_json()
-    if mood_id is None:
+    if isinstance(payload, dict) and mood_id is None:
         mood_id = payload["set_mood_id"]
-    return (await handlers.handle_set_mood(message.from_id, mood_id))
+
+    if isinstance(mood_id, int):
+        return (await handlers.handle_set_mood(message.from_id, mood_id))
 
 
 @bot.on.message(text=("!создать муд", "!новый муд"))
@@ -118,7 +123,7 @@ async def create_mood_info_handler(_: VkMessage):
 
 
 @bot.on.message(text=("!создать муд <instr>", "!новый муд <instr>"))
-async def create_mood_handler(message: VkMessage, instr: str | None = None):
+async def create_mood_handler(message: VkMessage, instr: str):
     return (await handlers.handle_create_mood(message.from_id, instr))
 
 
@@ -188,7 +193,7 @@ async def admin_give_currency_handler(message: VkMessage, currency_str: str):
     try:
         currency = int(currency_str)
     except ValueError:
-        return "Вы указали непавильное количество валюты, укажите число."
+        return "Вы указали неправильное количество валюты, укажите число."
 
     return (await handlers.handle_admin_give_currency(message.reply_message.from_id, currency))
 
