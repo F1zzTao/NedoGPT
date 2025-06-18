@@ -518,7 +518,7 @@ async def handle_del_persona(user_id: int) -> str:
 async def handle_del_account_warning(user_id: int) -> str:
     if not (await is_registered(user_id)):
         return (
-            f"{SYSTEM_EMOJI} Пока мы живем в 2024, этот гений живет в 2025"
+            f"{SYSTEM_EMOJI} Пока мы живем в 2025, этот гений живет в 2026"
             "\nУ вас и так нет аккаунта. Отличная причина создать его!"
         )
 
