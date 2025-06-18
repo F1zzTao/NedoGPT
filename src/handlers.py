@@ -37,7 +37,7 @@ from utils import find_model, moderate_query, censor_result, process_main_prompt
 
 
 async def handle_start(user_id: int, platform: str) -> tuple[str, bool]:
-    # bool means if kbd should be returned ot not
+    # bool means if kbd should be returned or not
     if user_id < 0:
         # ? Does TG works the same way?
         # Groups can't have an account
@@ -186,7 +186,10 @@ async def handle_ai(
 
 async def handle_settings(user_id: int) -> tuple[str, bool]:
     if not (await is_registered(user_id)):
-        return (f"{SYSTEM_EMOJI} Для этого нужен аккаунт!", False)
+        return (
+            f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\"",
+            False
+        )
 
     user_mood = await get_user_mood(user_id)
     logger.info(user_mood)
@@ -256,7 +259,7 @@ async def handle_mood_info(mood, full_name: str | None = None) -> str:
 
 async def handle_set_mood(user_id: int, mood_id: int) -> str:
     if not (await is_registered(user_id)):
-        return f"{SYSTEM_EMOJI} Для этого надо зарегестрироваться!"
+        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
 
     custom_mood = await get_mood(mood_id)
     if not custom_mood or (custom_mood[2] == 0 and user_id != custom_mood[1]):
@@ -321,7 +324,7 @@ async def handle_edit_mood(
     if not (await is_registered(user_id)):
         return (
             f"{SYSTEM_EMOJI} Что ты там менять собрался? У тебя даже аккаунта нет!"
-            f"\n... Поэтому можешь его создать, с помощью команды \"{cp}начать\"."
+            f"\n... Поэтому можешь его создать командой \"{cp}начать\"."
         )
     params = params_str.split()
     logger.info(f"Got these params: {params}")
@@ -411,7 +414,7 @@ def handle_persona_info(cp: str = "!") -> str:
 
 async def handle_set_persona(user_id: int, persona: str) -> str:
     if not (await is_registered(user_id)):
-        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
+        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
 
     fail_reason = await moderate_query(persona)
     if fail_reason:
@@ -423,7 +426,7 @@ async def handle_set_persona(user_id: int, persona: str) -> str:
 
 async def handle_my_persona(user_id: int) -> str:
     if not (await is_registered(user_id)):
-        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
+        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
 
     persona = await get_value(user_id, "persona")
     if persona:
@@ -461,7 +464,7 @@ async def handle_models_list(cp: str = "!") -> str:
 
 async def handle_set_model(user_id: int, model_id: int) -> str:
     if not (await is_registered(user_id)):
-        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
+        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
 
     selected_model: dict | None = find_model(MODELS, model_id)
     if selected_model is None:
@@ -495,7 +498,7 @@ async def handle_set_model(user_id: int, model_id: int) -> str:
 
 async def handle_del_mood(user_id: int, mood_id: int) -> str:
     if not (await is_registered(user_id)):
-        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
+        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
     user_moods = await get_user_created_moods(user_id)
     if mood_id not in user_moods or str(user_id) != VK_ADMIN_ID:
         return (
@@ -509,7 +512,7 @@ async def handle_del_mood(user_id: int, mood_id: int) -> str:
 
 async def handle_del_persona(user_id: int) -> str:
     if not (await is_registered(user_id)):
-        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
+        return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
 
     await update_value(user_id, "persona", None)
     return f"{SYSTEM_EMOJI} Персона успешно удалена!"
@@ -519,7 +522,7 @@ async def handle_del_account_warning(user_id: int) -> str:
     if not (await is_registered(user_id)):
         return (
             f"{SYSTEM_EMOJI} Пока мы живем в 2025, этот гений живет в 2026"
-            "\nУ вас и так нет аккаунта. Отличная причина создать его!"
+            "\nУ вас и так нет аккаунта. Отличная причина создать его командой \"!начать\"!"
         )
 
     msg = (
