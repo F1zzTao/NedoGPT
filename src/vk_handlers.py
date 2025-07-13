@@ -1,3 +1,5 @@
+from os import makedirs
+
 from loguru import logger
 from vkbottle import Keyboard, Text
 from vkbottle import KeyboardButtonColor as Color
@@ -199,6 +201,10 @@ async def admin_give_currency_handler(message: VkMessage, currency_str: str):
 
 
 if __name__ == "__main__":
+    error_log_path = "errors"
+    makedirs(error_log_path, exist_ok=True)
+    logger.add(f"{error_log_path}/vk_log_{{time}}.log", level="WARNING", rotation="20 MB")
+
     logger.info("Starting VK bot")
     bot.loop_wrapper.on_startup.append(create_tables())
     bot.run_forever()
