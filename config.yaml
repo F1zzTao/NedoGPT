@@ -13,6 +13,9 @@ models:
     template: null
     bad_russian: false
     price: 2
+    deprecation:
+      warning: true
+      is_deprecated: true
 
   - id: 3
     name: microsoft/wizardlm-2-7b
@@ -121,6 +124,9 @@ models:
     template: null
     bad_russian: false
     price: 2
+    deprecation:
+      warning: true
+      is_deprecated: true
 
   - id: 16
     name: deepseek/deepseek-chat-v3-0324:free
