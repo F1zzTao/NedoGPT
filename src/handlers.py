@@ -172,7 +172,7 @@ async def handle_ai(
 
     if not response:
         return (
-            f"{SYSTEM_EMOJI} Ответ от бота был съеден. Все равно он был невкусный (модерация)."
+            f"{SYSTEM_EMOJI} Ответ от бота был съеден. Все равно он был невкусный (попробуйте ещё раз)."
         )
 
     response = censor_result(response).strip()
