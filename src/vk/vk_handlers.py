@@ -1,37 +1,38 @@
-from os import makedirs
-
-from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 from vkbottle import Keyboard, Text
 from vkbottle import KeyboardButtonColor as Color
-from vkbottle.bot import Bot
+from vkbottle.bot import BotLabeler
 from vkbottle.bot import Message as VkMessage
 from vkbottle_types.objects import UsersUserFull
 
 import handlers
 from base import UserInfo
-from constants import SYSTEM_EMOJI, VK_ADMIN_ID, VK_BOT_ID, VK_TOKEN
-from db import create_tables
-from keyboards_vk import OPEN_SETTINGS_KBD, SETTINGS_KBD
-from vk_middlewares import DonationMsgMiddleware
+from constants import SYSTEM_EMOJI, VK_ADMIN_ID, VK_BOT_ID
+from core.loader import vk_api
+from services.users import get_user
 
-bot = Bot(VK_TOKEN)
-bot.labeler.message_view.register_middleware(DonationMsgMiddleware)
-bot.labeler.vbml_ignore_case = True  # pyright:ignore
+from .keyboards_vk import OPEN_SETTINGS_KBD, SETTINGS_KBD
+from .vk_middlewares import DatabaseMiddleware, DonationMsgMiddleware
+
+labeler = BotLabeler()
+labeler.message_view.register_middleware(DonationMsgMiddleware)
+labeler.message_view.register_middleware(DatabaseMiddleware)
+labeler.vbml_ignore_case = True  # pyright: ignore
 
 
-@bot.on.message(text=("начать", "!начать"))
+@labeler.message(text=("начать", "!начать"))
 async def start_handler(message: VkMessage):
     msg_reply = await handlers.handle_start(message.from_id, "vk")
     kbd = (OPEN_SETTINGS_KBD if msg_reply[1] else None)
     await message.answer(msg_reply[0], keyboard=kbd)
 
 
-@bot.on.message(text=("!aihelp", "!команды"))
+@labeler.message(text=("!aihelp", "!команды"))
 async def help_handler(_: VkMessage):
     return handlers.handle_help()
 
 
-@bot.on.message(text=('!ai <query>', '!gpt <query>', '.ai <query>'))
+@labeler.message(text=('!ai <query>', '!gpt <query>', '.ai <query>'))
 async def ai_txt_handler(message: VkMessage, query: str):
     full_name: str = "Anonymous"
 
@@ -59,7 +60,7 @@ async def ai_txt_handler(message: VkMessage, query: str):
 
     wait_msg = await message.reply(f"{SYSTEM_EMOJI} Генерируем ответ, пожалуйста подождите...")
     msg_reply = await handlers.handle_ai(
-        query, user_info, VK_BOT_ID, reply_user_info, reply_query
+        query, user_info, VK_BOT_ID, reply_user_info, reply_query  # pyright: ignore
     )
     await message.ctx_api.messages.edit(
         peer_id=message.peer_id,
@@ -69,27 +70,27 @@ async def ai_txt_handler(message: VkMessage, query: str):
     )
 
 
-@bot.on.message(text=("!гптнастройки", "!settings", "!настройки"))
-@bot.on.message(payload={"cmd": "settings"})
+@labeler.message(text=("!гптнастройки", "!settings", "!настройки"))
+@labeler.message(payload={"cmd": "settings"})
 async def open_settings_handler(message: VkMessage):
     msg_reply = await handlers.handle_settings(message.from_id)
     kbd = (SETTINGS_KBD if msg_reply[1] else None)
     await message.answer(msg_reply[0], keyboard=kbd)
 
 
-@bot.on.message(text=("!moods", "!муды"))
-@bot.on.message(payload={"cmd": "change_gpt_mood_info"})
+@labeler.message(text=("!moods", "!муды"))
+@labeler.message(payload={"cmd": "change_gpt_mood_info"})
 async def list_mood_handler(_: VkMessage):
     return (await handlers.handle_mood_list())
 
 
-@bot.on.message(text="!муд <mood_id:int>")
+@labeler.message(text="!муд <mood_id:int>")
 async def custom_mood_info(message: VkMessage, mood_id: int):
     mood = await handlers.mood_exists(message.from_id, mood_id)
     if isinstance(mood, str):
         return mood
 
-    creator_info = (await bot.api.users.get(user_ids=[mood[1]], name_case="gen"))[0]
+    creator_info = (await vk_api.users.get(user_ids=[mood[1]], name_case="gen"))[0]
     creator_full_name_gen = f"{creator_info.first_name} {creator_info.last_name}"
 
     choose_this_kbd = (
@@ -101,7 +102,7 @@ async def custom_mood_info(message: VkMessage, mood_id: int):
     await message.answer(mood_info_msg, keyboard=choose_this_kbd, disable_mentions=True)
 
 
-@bot.on.message(
+@labeler.message(
     text=(
         "!setmood <mood_id:int>",
         "!поменять муд <mood_id:int>",
@@ -109,7 +110,7 @@ async def custom_mood_info(message: VkMessage, mood_id: int):
         "!выбрать муд <mood_id:int>",
     )
 )
-@bot.on.message(payload_map=[("set_mood_id", int)])
+@labeler.message(payload_map=[("set_mood_id", int)])
 async def change_mood_handler(message: VkMessage, mood_id: int | None = None):
     payload = message.get_payload_json()
     if isinstance(payload, dict) and mood_id is None:
@@ -119,73 +120,73 @@ async def change_mood_handler(message: VkMessage, mood_id: int | None = None):
         return (await handlers.handle_set_mood(message.from_id, mood_id))
 
 
-@bot.on.message(text=("!создать муд", "!новый муд"))
+@labeler.message(text=("!создать муд", "!новый муд"))
 async def create_mood_info_handler(_: VkMessage):
     return handlers.handle_create_mood_info()
 
 
-@bot.on.message(text=("!создать муд <instr>", "!новый муд <instr>"))
+@labeler.message(text=("!создать муд <instr>", "!новый муд <instr>"))
 async def create_mood_handler(message: VkMessage, instr: str):
     return (await handlers.handle_create_mood(message.from_id, instr))
 
 
-@bot.on.message(text="!муд <params_str>")
+@labeler.message(text="!муд <params_str>")
 async def edit_mood_handler(message: VkMessage, params_str: str):
     return (await handlers.handle_edit_mood(message.from_id, params_str))
 
 
-@bot.on.message(text="!мои муды")
+@labeler.message(text="!мои муды")
 async def my_moods_handler(message: VkMessage):
     return (await handlers.handle_my_moods(message.from_id))
 
 
-@bot.on.message(text="!персона")
+@labeler.message(text="!персона")
 async def persona_info_handler(_: VkMessage):
     return handlers.handle_persona_info()
 
 
-@bot.on.message(text="!персона <instr>")
+@labeler.message(text="!персона <instr>")
 async def set_persona_handler(message: VkMessage, instr: str):
     return (await handlers.handle_set_persona(message.from_id, instr))
 
 
-@bot.on.message(text="!моя персона")
+@labeler.message(text="!моя персона")
 async def my_persona_handler(message: VkMessage):
     return (await handlers.handle_my_persona(message.from_id))
 
 
-@bot.on.message(text="!модели")
+@labeler.message(text="!модели")
 async def model_list_handler(_: VkMessage):
     return (await handlers.handle_models_list())
 
 
-@bot.on.message(text=("!модель <model_id_user:int>", "!выбрать модель <model_id_user:int>"))
+@labeler.message(text=("!модель <model_id_user:int>", "!выбрать модель <model_id_user:int>"))
 async def set_model_handler(message: VkMessage, model_id_user: int):
     return (await handlers.handle_set_model(message.from_id, model_id_user))
 
 
-@bot.on.message(text="!удалить муд <mood_id:int>")
+@labeler.message(text="!удалить муд <mood_id:int>")
 async def del_mood_handler(message: VkMessage, mood_id: int):
     return (await handlers.handle_del_mood(message.from_id, mood_id))
 
 
-@bot.on.message(text="!удалить персону")
+@labeler.message(text="!удалить персону")
 async def del_persona_handler(message: VkMessage):
     return (await handlers.handle_del_persona(message.from_id))
 
 
-@bot.on.message(text="!удалить гпт")
-@bot.on.message(payload={"cmd": "delete_account"})
+@labeler.message(text="!удалить гпт")
+@labeler.message(payload={"cmd": "delete_account"})
 async def del_account_warning_handler(message: VkMessage):
     return (await handlers.handle_del_account_warning(message.from_id))
 
 
-@bot.on.message(text="!точно удалить гпт")
+@labeler.message(text="!точно удалить гпт")
 async def del_account_handler(message: VkMessage):
     return (await handlers.handle_del_account(message.from_id))
 
 
-@bot.on.message(text="!выдать суши <currency_str>")
+@labeler.message(text="!выдать суши <currency_str>")
 async def admin_give_currency_handler(message: VkMessage, currency_str: str):
     if str(message.from_id) != VK_ADMIN_ID:
         return
@@ -200,11 +201,8 @@ async def admin_give_currency_handler(message: VkMessage, currency_str: str):
     return (await handlers.handle_admin_give_currency(message.reply_message.from_id, currency))
 
 
-if __name__ == "__main__":
-    error_log_path = "errors"
-    makedirs(error_log_path, exist_ok=True)
-    logger.add(f"{error_log_path}/vk_log_{{time}}.log", level="WARNING", rotation="20 MB")
-
-    logger.info("Starting VK bot")
-    bot.loop_wrapper.on_startup.append(create_tables())
-    bot.run_forever()
+@labeler.message(text="!тест")
+async def test_handler(message: VkMessage, session: AsyncSession):
+    user = await get_user(session, 322615766)
+    print(user)
+    return f"сессьон: {user}"
