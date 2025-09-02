@@ -140,6 +140,12 @@ models:
     bad_russian: false
     price: 0
 
+  - id: 18
+    name: deepseek/deepseek-chat-v3.1:free
+    template: null
+    bad_russian: false
+    price: 0
+
 default_model_id: 16
 
 paths:
