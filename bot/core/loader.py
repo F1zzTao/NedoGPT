@@ -3,7 +3,7 @@ from telegrinder import Dispatch, Telegrinder, Token
 from vkbottle import API as VkAPI
 from vkbottle.bot import Bot
 
-from constants import TG_TOKEN, VK_TOKEN
+from bot.constants import TG_TOKEN, VK_TOKEN
 
 # VK
 vk_api = VkAPI(VK_TOKEN)  # pyright: ignore

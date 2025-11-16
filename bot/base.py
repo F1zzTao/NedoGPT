@@ -6,7 +6,7 @@ import yaml
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 from unidecode import unidecode
 
-from constants import AI_EMOJI, INSTRUCTION_TEMPLATES_PATH, SEPARATOR_TOKEN
+from bot.constants import AI_EMOJI, INSTRUCTION_TEMPLATES_PATH, SEPARATOR_TOKEN
 
 
 @dataclass(frozen=True)

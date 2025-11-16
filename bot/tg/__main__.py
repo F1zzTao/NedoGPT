@@ -1,7 +1,7 @@
-from core.loader import tg_bot
-from db import create_tables
-from tg import dp
-from tg.tg_middlewares import DatabaseMiddleware
+from bot.core.loader import tg_bot
+from bot.db import create_tables
+from bot.tg import dp
+from bot.tg.tg_middlewares import DatabaseMiddleware
 
 
 async def set_bot_id():

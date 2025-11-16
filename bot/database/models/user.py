@@ -5,20 +5,19 @@ from typing import List
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.models.base import Base, big_int_pk, created_at
+from bot.database.models.base import Base, big_int_pk, created_at, int_pk
 
 
 class UserModel(Base):
     __tablename__ = "users"
 
     id: Mapped[big_int_pk]
-    user_id: Mapped[int]
     platform: Mapped[str]
 
     current_mood_id: Mapped[int] = mapped_column(default=0)
     current_model_id: Mapped[int] = mapped_column(default=2)
 
-    persona: Mapped[str]
+    persona: Mapped[str] = mapped_column(default="")
     created_moods: Mapped[List["MoodModel"]] = relationship("MoodModel")
 
     is_owner: Mapped[bool] = mapped_column(default=False)
@@ -28,12 +27,13 @@ class UserModel(Base):
 class MoodModel(Base):
     __tablename__ = "moods"
 
-    id: Mapped[big_int_pk]
+    id: Mapped[int_pk]
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
 
     name: Mapped[str]
-    description: Mapped[str]
+    description: Mapped[str] = mapped_column(default="")
     instructions: Mapped[str]
     is_private: Mapped[bool] = mapped_column(default=False)
 
     created_at: Mapped[created_at]
+

@@ -4,8 +4,7 @@ import random
 from vkbottle import BaseMiddleware
 from vkbottle.bot import Message
 
-from constants import DONATION_MSG, DONATION_MSG_CHANCE
-from database.database import sessionmaker
+from bot.constants import DONATION_MSG, DONATION_MSG_CHANCE
 
 
 class DonationMsgMiddleware(BaseMiddleware[Message]):
@@ -15,9 +14,3 @@ class DonationMsgMiddleware(BaseMiddleware[Message]):
         if random.random() < DONATION_MSG_CHANCE:
             await asyncio.sleep(0.3)
             await self.event.answer(DONATION_MSG)
-
-
-class DatabaseMiddleware(BaseMiddleware[Message]):
-    async def pre(self):
-        async with sessionmaker() as session:
-            self.send({"session": session})

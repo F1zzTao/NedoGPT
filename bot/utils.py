@@ -3,8 +3,8 @@ import re
 from vkbottle.bot import Message
 from vkbottle_types.objects import MessagesMessageAttachmentType, PhotosPhotoSizes
 
-import ai_stuff
-from constants import (
+from bot import ai_stuff
+from bot.constants import (
     CENSOR_WORDS,
     MAX_IMAGE_WIDTH,
     SYSTEM_EMOJI,

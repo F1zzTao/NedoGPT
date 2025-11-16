@@ -1,22 +1,21 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+from loguru import logger
 from vkbottle import Keyboard, Text
 from vkbottle import KeyboardButtonColor as Color
 from vkbottle.bot import BotLabeler
 from vkbottle.bot import Message as VkMessage
 from vkbottle_types.objects import UsersUserFull
 
-import handlers
-from base import UserInfo
-from constants import SYSTEM_EMOJI, VK_ADMIN_ID, VK_BOT_ID
-from core.loader import vk_api
-from services.users import get_user
-
-from .keyboards_vk import OPEN_SETTINGS_KBD, SETTINGS_KBD
-from .vk_middlewares import DatabaseMiddleware, DonationMsgMiddleware
+from bot import handlers
+from bot.base import UserInfo
+from bot.constants import SYSTEM_EMOJI, VK_ADMIN_ID, VK_BOT_ID
+from bot.core.loader import vk_api
+from bot.database.database import sessionmaker
+from bot.services.users import add_user, get_user, user_exists
+from bot.vk.keyboards_vk import OPEN_SETTINGS_KBD, SETTINGS_KBD
+from bot.vk.vk_middlewares import DonationMsgMiddleware
 
 labeler = BotLabeler()
 labeler.message_view.register_middleware(DonationMsgMiddleware)
-labeler.message_view.register_middleware(DatabaseMiddleware)
 labeler.vbml_ignore_case = True  # pyright: ignore
 
 
@@ -90,12 +89,12 @@ async def custom_mood_info(message: VkMessage, mood_id: int):
     if isinstance(mood, str):
         return mood
 
-    creator_info = (await vk_api.users.get(user_ids=[mood[1]], name_case="gen"))[0]
+    creator_info = (await vk_api.users.get(user_ids=[mood.user_id], name_case="gen"))[0]
     creator_full_name_gen = f"{creator_info.first_name} {creator_info.last_name}"
 
     choose_this_kbd = (
         Keyboard(inline=True)
-        .add(Text("Выбрать этот муд", payload={"set_mood_id": mood[0]}), color=Color.PRIMARY)
+        .add(Text("Выбрать этот муд", payload={"set_mood_id": mood.id}), color=Color.PRIMARY)
     ).get_json()
 
     mood_info_msg = await handlers.handle_mood_info(mood, creator_full_name_gen)
@@ -202,7 +201,13 @@ async def admin_give_currency_handler(message: VkMessage, currency_str: str):
 
 
 @labeler.message(text="!тест")
-async def test_handler(message: VkMessage, session: AsyncSession):
-    user = await get_user(session, 322615766)
-    print(user)
-    return f"сессьон: {user}"
+async def test_handler(message: VkMessage):
+    async with sessionmaker() as session:
+        is_exists = await user_exists(session, message.from_id)
+        if not is_exists:
+            await add_user(session, message.from_id, "vk")
+        else:
+            user = await get_user(session, message.from_id)
+            logger.info(user)
+
+    return "готово"

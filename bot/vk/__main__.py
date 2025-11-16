@@ -2,8 +2,8 @@ from os import makedirs
 
 from loguru import logger
 
-from core.loader import vk_bot
-from vk import labeler
+from bot.core.loader import vk_bot
+from bot.vk import labeler
 
 if __name__ == "__main__":
     error_log_path = "errors"

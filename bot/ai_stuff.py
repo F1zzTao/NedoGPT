@@ -2,7 +2,7 @@ import aiohttp
 import tiktoken
 from loguru import logger
 
-from constants import SEPARATOR_TOKEN
+from bot.constants import SEPARATOR_TOKEN
 
 
 def num_tokens_from_string(string: str, model: str = "gpt-4o") -> int:
@@ -17,7 +17,7 @@ async def create_response(
     messages: list[dict] | None = None,
     prompt: str | None = None,
     model: str = "openai/gpt-4o-mini",
-) -> str | None:
+) -> dict | None:
     if (not messages and not prompt) or (messages and prompt):
         raise ValueError("Either `messages` or `prompt` must be provided")
 
@@ -27,6 +27,10 @@ async def create_response(
         "model": model,
         "max_tokens": 1000,
         "stop": [SEPARATOR_TOKEN],
+        "reasoning": {
+            "enabled": True,
+            "exclude": True
+        }
     }
     if messages:
         json_data["messages"] = messages
@@ -37,7 +41,11 @@ async def create_response(
         async with session.post(url+"/chat/completions", json=json_data) as request:
             response = await request.json()
 
+    if response.get("error"):
+        logger.error(f"Error from OpenRouter: {response['error']}")
+        return {"status": "error", "response": response["error"]["message"]}
+
     if response.get("choices"):
         choice = response["choices"][0]
         msg = choice.get("text") or choice["message"]["content"]
-        return msg
+        return {"status": "success", "response": msg}
