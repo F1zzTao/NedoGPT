@@ -28,7 +28,6 @@ async def create_response(
         "max_tokens": 1000,
         "stop": [SEPARATOR_TOKEN],
         "reasoning": {
-            "enabled": True,
             "exclude": True
         }
     }
