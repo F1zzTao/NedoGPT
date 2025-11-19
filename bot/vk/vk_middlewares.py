@@ -4,7 +4,7 @@ import random
 from vkbottle import BaseMiddleware
 from vkbottle.bot import Message
 
-from constants import DONATION_MSG, DONATION_MSG_CHANCE
+from bot.constants import DONATION_MSG, DONATION_MSG_CHANCE
 
 
 class DonationMsgMiddleware(BaseMiddleware[Message]):

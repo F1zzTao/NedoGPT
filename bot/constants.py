@@ -18,9 +18,9 @@ OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL") or "https://openrouter.ai/ap
 # HTTP-Referer: link to your website
 # X-Title: name of your project, will be displayed in openrouter.ai leaderboards
 OPENROUTER_HEADERS = {
+    "Authorization": f"Bearer {OPENAI_TOKEN}",
     "HTTP-Referer": "https://vk.com/public205906217",
     "X-Title": "NedoGPT",
-    "Authorization": f"Bearer {OPENAI_TOKEN}",
 }
 
 VK_TOKEN: str | None = os.getenv("VK_API_KEY")
