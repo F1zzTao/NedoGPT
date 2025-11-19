@@ -1,19 +1,26 @@
+from loguru import logger
+
+from bot.constants import VK_ADMIN_ID
 from bot.core.loader import tg_bot
-from bot.db import create_tables
+from bot.database.database import sessionmaker
+from bot.services.moods import add_default_mood
 from bot.tg import dp
-from bot.tg.tg_middlewares import DatabaseMiddleware
 
 
-async def set_bot_id():
+async def on_startup() -> None:
     global tg_bot_id
     bot_info = await tg_bot.api.get_me()
     tg_bot_id = str(bot_info.unwrap().id)
 
+    async with sessionmaker() as session:
+        result = await add_default_mood(session, int(VK_ADMIN_ID))
+
+    if result:
+        logger.info("Successfully added the default mood")
+
 
 if __name__ == "__main__":
-    tg_bot.loop_wrapper.lifespan.on_startup(create_tables())
-    tg_bot.loop_wrapper.lifespan.on_startup(set_bot_id())
+    tg_bot.loop_wrapper.lifespan.on_startup(on_startup())
     tg_bot.on.load(dp)
-    tg_bot.on.message.register_middleware(DatabaseMiddleware())
 
     tg_bot.run_forever()

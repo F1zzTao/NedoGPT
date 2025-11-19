@@ -1,19 +1,18 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from telegrinder import (
     CallbackQuery,
     InlineButton,
     InlineKeyboard,
     Message,
+    MessageCute,
 )
 from telegrinder.rules import CallbackDataEq, CallbackDataMarkup, Markup, Text
 from telegrinder.types import User
 
-import handlers
-from base import UserInfo
-from core.loader import dp
-from services.users import get_user
-
-from .keyboards_tg import OPEN_SETTINGS_KBD, SETTINGS_KBD
+from bot import handlers
+from bot.base import UserInfo
+from bot.constants import SYSTEM_EMOJI
+from bot.core.loader import dp
+from bot.tg.keyboards_tg import OPEN_SETTINGS_KBD, SETTINGS_KBD
 
 DEFAULT_PREFIX: str = "/"
 tg_bot_id: str = "0"
@@ -53,10 +52,14 @@ async def ai_handler(message: Message, query: str):
 
     user = UserInfo(message.from_user.id, full_name)
 
+    wait_msg = await message.reply(f"{SYSTEM_EMOJI} Генерируем ответ, пожалуйста подождите...")
     msg_reply = await handlers.handle_ai(
         query, user, tg_bot_id, reply_user, reply_query
     )
-    await message.reply(msg_reply)
+    if isinstance(wait_msg, MessageCute):
+        await wait_msg.edit(msg_reply)
+    else:
+        await message.reply(msg_reply)
 
 
 @dp.message(Text(["/settings", "/гптнастройки"]))
@@ -97,7 +100,7 @@ async def mood_info_handler(message: Message, mood_id: int):
 
     choose_this_kbd = (
         InlineKeyboard()
-        .add(InlineButton(text="Выбрать этот муд", callback_data=f"mood_id/{mood[0]}"))
+        .add(InlineButton(text="Выбрать этот муд", callback_data=f"mood_id/{mood.id}"))
     ).get_markup()
 
     mood_info_msg = await handlers.handle_mood_info(mood)
@@ -198,10 +201,3 @@ async def del_account_warning_callback_handler(cb: CallbackQuery):
 @dp.message(Text(["/deletegptsure", "/точно удалить гпт"]))
 async def del_account_handler(message: Message):
     return (await handlers.handle_del_account(message.from_user.id))
-
-
-@dp.message(Text(["/test", "/тест"]))
-async def test_handler(session: AsyncSession):
-    user = await get_user(session, 322615766)
-    print(user)
-    return f"сессьон: {session}"

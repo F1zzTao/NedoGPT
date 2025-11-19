@@ -1,4 +1,3 @@
-from loguru import logger
 from vkbottle import Keyboard, Text
 from vkbottle import KeyboardButtonColor as Color
 from vkbottle.bot import BotLabeler
@@ -7,10 +6,8 @@ from vkbottle_types.objects import UsersUserFull
 
 from bot import handlers
 from bot.base import UserInfo
-from bot.constants import SYSTEM_EMOJI, VK_ADMIN_ID, VK_BOT_ID
+from bot.constants import SYSTEM_EMOJI, VK_BOT_ID
 from bot.core.loader import vk_api
-from bot.database.database import sessionmaker
-from bot.services.users import add_user, get_user, user_exists
 from bot.vk.keyboards_vk import OPEN_SETTINGS_KBD, SETTINGS_KBD
 from bot.vk.vk_middlewares import DonationMsgMiddleware
 
@@ -183,31 +180,3 @@ async def del_account_warning_handler(message: VkMessage):
 @labeler.message(text="!точно удалить гпт")
 async def del_account_handler(message: VkMessage):
     return (await handlers.handle_del_account(message.from_id))
-
-
-@labeler.message(text="!выдать суши <currency_str>")
-async def admin_give_currency_handler(message: VkMessage, currency_str: str):
-    if str(message.from_id) != VK_ADMIN_ID:
-        return
-
-    if not message.reply_message:
-        return "Вы не указали ответ на сообщение."
-    try:
-        currency = int(currency_str)
-    except ValueError:
-        return "Вы указали неправильное количество валюты, укажите число."
-
-    return (await handlers.handle_admin_give_currency(message.reply_message.from_id, currency))
-
-
-@labeler.message(text="!тест")
-async def test_handler(message: VkMessage):
-    async with sessionmaker() as session:
-        is_exists = await user_exists(session, message.from_id)
-        if not is_exists:
-            await add_user(session, message.from_id, "vk")
-        else:
-            user = await get_user(session, message.from_id)
-            logger.info(user)
-
-    return "готово"
