@@ -161,7 +161,6 @@ async def handle_ai(
     result = await ai_stuff.create_response(
         OPENROUTER_HEADERS, OPENAI_BASE_URL, messages_rendered, prompt_rendered, model_name
     )
-    logger.info(result)
 
     if not result:
         return (

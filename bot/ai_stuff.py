@@ -40,6 +40,8 @@ async def create_response(
         async with session.post(url+"/chat/completions", json=json_data) as request:
             response = await request.json()
 
+    logger.info(f"Got response from OpenRouter: {response}")
+
     if response.get("error"):
         logger.error(f"Error from OpenRouter: {response['error']}")
         return {"status": "error", "response": response["error"]["message"]}
