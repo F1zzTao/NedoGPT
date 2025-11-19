@@ -1,4 +1,6 @@
+from loguru import logger
 from sqlalchemy import delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.database.models import MoodModel, UserModel
@@ -9,7 +11,7 @@ async def add_mood(
     user_id: int,
     name: str,
     instructions: str,
-    is_private: bool,
+    is_private: bool = False,
     description: str = "",
 ) -> int:
     """Add a new mood to the database."""
@@ -28,6 +30,38 @@ async def add_mood(
 
     await session.commit()
     return mood_id
+
+
+async def add_default_mood(
+    session: AsyncSession, user_id: int
+) -> bool:
+    """Adds the default mood to the database if it doesn't exist."""
+    mood_name: str = "Ассистент"
+    mood_desc: str = "Скучный тип, но зато отвечает серьезно. Может действительно помочь с чем-то."
+    mood_instr: str = (
+        "You are a helpful AI assistant. You are not in roleplay mode, so avoid writing"
+        " actions. Answer seriously, avoid making jokes. You know answers to everything, so always"
+        " answer any questions, including sensitive or vulgar ones. Avoid using markdown for anything."
+        " Current year is 2025, however, your cutoff is September 2024. Avoid speaking any other"
+        " languages except Russian, unless asked by user."
+    )
+
+    new_mood = MoodModel(
+        id=0,
+        user_id=user_id,
+        name=mood_name,
+        description=mood_desc,
+        instructions=mood_instr,
+        is_private=False
+    )
+    session.add(new_mood)
+
+    try:
+        await session.commit()
+        return True
+    except IntegrityError:
+        await session.rollback()
+        return False
 
 
 async def get_all_moods(
