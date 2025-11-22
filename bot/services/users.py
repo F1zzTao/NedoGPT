@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.constants import MODELS
 from bot.database.models import UserModel
-from bot.utils import find_model
+from bot.utils import find_model_by_id, find_model_by_request
 
 
 async def add_user(
@@ -64,4 +64,13 @@ async def get_user_model(session: AsyncSession, user_id: int) -> dict | None:
     result = await session.execute(query)
 
     model_id = result.scalar_one()
-    return find_model(MODELS, model_id)
+    if model_id.isdigit():
+        model = find_model_by_id(MODELS, model_id)
+        if model:
+            model["source"] = "bot"
+        return model
+    else:
+        model = await find_model_by_request(model_id)
+        if model:
+            model["source"] = "openrouter"
+        return model

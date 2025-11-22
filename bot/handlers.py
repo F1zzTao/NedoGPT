@@ -32,7 +32,7 @@ from bot.services.users import (
     update_user_value,
     user_exists,
 )
-from bot.utils import censor_result, find_model, moderate_query, process_main_prompt
+from bot.utils import censor_result, find_model_by_id, find_model_by_request, moderate_query, process_main_prompt
 
 
 async def handle_start(user_id: int, platform: str) -> tuple[str, bool]:
@@ -98,26 +98,32 @@ async def handle_ai(
         user_model: dict | None = await get_user_model(session, user.user_id)
         if user_model is None:
             logger.warning(f"User {user.user_id}'s model doesn't exist anymore, fallback to default")
-            default_model = find_model(MODELS, DEFAULT_MODEL_ID)
+
+            default_model = find_model_by_id(MODELS, DEFAULT_MODEL_ID)
             if default_model is None:
                 default_model = {"name": "???"}
-            default_model_name = default_model["name"]
+
             await update_user_value(session, user.user_id, UserModel.current_model_id, DEFAULT_MODEL_ID)
+
             return (
-                f"{SYSTEM_EMOJI} Каким-то образом, модели, которая у вас сейчас установлена, больше"
-                " не существует в боте. Мы автоматически поменяли её на модель по умолчанию"
-                f" ({default_model_name})."
+                f"{SYSTEM_EMOJI} Модели, которая у вас сейчас установлена, больше"
+                " не существует. Мы автоматически поменяли её на модель по умолчанию"
+                f" ({default_model['name']})."
                 "\nПопробуйте ввести команду ещё раз, или выберите другую модель в списке \"!модели\""
             )
 
-        model_name: str = user_model['name']
-        if user_model.get("deprecation"):
-            if user_model["deprecation"]["is_deprecated"]:
-                return (
-                    f"{SYSTEM_EMOJI} Выбранная модель ({user_model['name']}) устарела. Пожалуйста,"
-                    " выберите другую через команду \"!модель <айди модели>\". Посмотреть все"
-                    " модели можно командой \"!модели\""
-                )
+        model_name: str = ""
+        if user_model["source"] == "bot":
+            model_name = user_model['name']
+            if user_model.get("deprecation"):
+                if user_model["deprecation"]["is_deprecated"]:
+                    return (
+                        f"{SYSTEM_EMOJI} Выбранная модель ({user_model['name']}) устарела. Пожалуйста,"
+                        " выберите другую через команду \"!модель <айди модели>\". Посмотреть все"
+                        " модели можно командой \"!модели\""
+                    )
+        else:
+            model_name = user_model['id']
 
 
         fail_reason = await moderate_query(conversation_text)
@@ -153,7 +159,7 @@ async def handle_ai(
 
     messages_rendered = None
     prompt_rendered = None
-    if user_model['template']:
+    if user_model['source'] == 'bot' and user_model['template']:
         prompt_rendered = await prompt.full_render_template(bot_id, user_model['template'])
     else:
         messages_rendered = prompt.full_render(bot_id)
@@ -205,17 +211,22 @@ async def handle_settings(user_id: int) -> tuple[str, bool]:
         user_model = {
             "name": "???"
         }
-    model_name = user_model['name']
-    if user_model.get("deprecation"):
-        if user_model["deprecation"]["warning"]:
-            model_name += " ⚠️"
 
-    # sushi_amount: int = await get_value(user_id, "sushi_amount", "sushi_balance") or 0
+    model_display_name = None
+    if user_model['source'] == 'bot':
+        model_name = user_model['name']
+        if user_model.get("deprecation"):
+            if user_model["deprecation"]["warning"]:
+                model_name += " ⚠️"
+    else:
+        model_name = user_model['id']
+        model_display_name = user_model['name']
+
+    current_model_string = (f"{model_display_name} ({model_name})" if model_display_name else model_name)
 
     return (
         f"{SYSTEM_EMOJI} | Текущий муд: {mood_name} (id: {mood_id})\n"
-        f"🤖 | Текущая модель: {model_name}",
-        # f"🍣 | Ваши суши: {sushi_amount}",
+        f"🤖 | Текущая модель: {current_model_string}",
         True
     )
 
@@ -438,7 +449,7 @@ async def handle_my_persona(user_id: int) -> str:
 
 
 async def handle_models_list(cp: str = "!") -> str:
-    msg = f"{SYSTEM_EMOJI} Вот все текущие доступные модели:"
+    msg = f"{SYSTEM_EMOJI} Вот все текущие доступные модели бота:"
     for model in MODELS:
         model_id = model["id"]
         model_name = model['name']
@@ -463,37 +474,72 @@ async def handle_models_list(cp: str = "!") -> str:
     return msg
 
 
-async def handle_set_model(user_id: int, model_id: int) -> str:
+async def handle_set_model(user_id: int, model_string: str) -> str | None:
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
             return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
 
-        selected_model: dict | None = find_model(MODELS, model_id)
-        if selected_model is None:
-            return f"{SYSTEM_EMOJI} Модели с таким айди пока не существует!"
+        is_custom = False
+        if not model_string.isdigit():
+            if len(model_string.split("/")) != 2:
+                return
+            if not model_string.endswith(":free"):
+                return (
+                    f"{SYSTEM_EMOJI} При выборе кастомной модели можно устанавливать только те,"
+                    " которые бесплатные (то есть, все, которые заканчиваются на :free)."
+                )
+            is_custom = True
 
-        if selected_model.get("deprecation") and selected_model["deprecation"]["is_deprecated"]:
-            return (
-                f"{SYSTEM_EMOJI} Модель {selected_model['name']} устарела и больше не поддерживается,"
-                " пожалуйста выберите другую!"
-            )
+        model_name = None
+        model_openrouter_id = None
+        if not is_custom:
+            selected_model: dict | None = find_model_by_id(MODELS, model_string)
+            if selected_model is None:
+                return f"{SYSTEM_EMOJI} Модели с таким айди пока не существует!"
 
-        await update_user_value(session, user_id, UserModel.current_model_id, model_id)
+            if selected_model.get("deprecation") and selected_model["deprecation"]["is_deprecated"]:
+                return (
+                    f"{SYSTEM_EMOJI} Модель {selected_model['name']} устарела и больше не поддерживается,"
+                    " пожалуйста выберите другую!"
+                )
+            model_name = selected_model["name"]
+        else:
+            model = await find_model_by_request(model_string)
+            if not model:
+                return f"{SYSTEM_EMOJI} Такой модели на OpenRouter не существует!"
+
+            pricing = model["pricing"]
+            if pricing["prompt"] != "0" or pricing["completion"] != "0" or pricing["request"] != "0":
+                return (
+                    f"{SYSTEM_EMOJI} Обманочка - айди модели заканчивается на :free, но на деле она не"
+                    " бесплатная. Как так вышло...?"
+                )
+            model_name = model["name"]
+            model_openrouter_id = model["id"]
+
+        await update_user_value(session, user_id, UserModel.current_model_id, model_string)
 
     msg = (
-        f"{SYSTEM_EMOJI} Вы успешно установили модель {selected_model['name']}!"
+        f"{SYSTEM_EMOJI} Вы успешно установили модель {model_name}!"
     )
-    if selected_model.get("deprecation") and selected_model["deprecation"]["warning"]:
-        msg += (
-            "\n\n⚠️ Внимание: выбранная модель устарела и скоро будет удалена из бота. "
-            "Используйте другую модель."
-        )
+    if not is_custom:
+        if selected_model.get("deprecation") and selected_model["deprecation"]["warning"]:
+            msg += (
+                "\n\n⚠️ Внимание: выбранная модель устарела и скоро будет удалена из бота. "
+                "Используйте другую модель."
+            )
 
-    if selected_model['bad_russian']:
+        if selected_model['bad_russian']:
+            msg += (
+                "\n\n⚠️ Внимание: выбранная модель была в основном натренирована на английских"
+                " данных и с русским работает очень плохо. Рекомендуется использовать английский"
+                " для данной модели."
+            )
+    else:
         msg += (
-            "\n\n⚠️ Внимание: выбранная модель была в основном натренирована на английских"
-            " данных и с русским работает очень плохо. Рекомендуется использовать английский"
-            " для данной модели."
+            f"\n\n⚠️ Внимание: вы выбрали кастомную модель с OpenRouter ({model_openrouter_id})."
+            " Делать это не рекомендуется, так как качество и работа с русским кастомных моделей"
+            " может сильно варьироваться. Используйте её только если вы знаете, что делаете."
         )
     return msg
 

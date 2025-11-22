@@ -173,9 +173,9 @@ async def model_list_handler(_: Message):
     return (await handlers.handle_models_list(DEFAULT_PREFIX))
 
 
-@dp.message(Markup(["/model <model_id_user:int>", "/модель <model_id_user:int>"]))
-async def set_model_handler(message: Message, model_id_user: int):
-    return (await handlers.handle_set_model(message.from_user.id, model_id_user))
+@dp.message(Markup(["/model <model_string>", "/модель <model_string>"]))
+async def set_model_handler(message: Message, model_string: str):
+    return (await handlers.handle_set_model(message.from_user.id, model_string))
 
 
 @dp.message(Markup(["/deletemood <mood_id:int>", "/удалить муд <mood_id:int>"]))

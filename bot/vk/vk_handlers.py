@@ -156,9 +156,9 @@ async def model_list_handler(_: VkMessage):
     return (await handlers.handle_models_list())
 
 
-@labeler.message(text=("!модель <model_id_user:int>", "!выбрать модель <model_id_user:int>"))
-async def set_model_handler(message: VkMessage, model_id_user: int):
-    return (await handlers.handle_set_model(message.from_id, model_id_user))
+@labeler.message(text=("!модель <model_string>", "!выбрать модель <model_string>"))
+async def set_model_handler(message: VkMessage, model_string: str):
+    return (await handlers.handle_set_model(message.from_id, model_string))
 
 
 @labeler.message(text="!удалить муд <mood_id:int>")

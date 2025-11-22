@@ -1,5 +1,6 @@
 import re
 
+import aiohttp
 from vkbottle.bot import Message
 from vkbottle_types.objects import MessagesMessageAttachmentType, PhotosPhotoSizes
 
@@ -7,6 +8,8 @@ from bot import ai_stuff
 from bot.constants import (
     CENSOR_WORDS,
     MAX_IMAGE_WIDTH,
+    OPENAI_BASE_URL,
+    OPENROUTER_HEADERS,
     SYSTEM_EMOJI,
 )
 
@@ -89,7 +92,17 @@ def censor_result(query: str) -> str:
     return query
 
 
-def find_model(models: list[dict], model_id: int) -> dict | None:
+def find_model_by_id(models: list[dict], model_id: str) -> dict | None:
     for model in models:
-        if model["id"] == model_id:
+        if str(model["id"]) == model_id:
+            return model
+
+
+async def find_model_by_request(model_string: str) -> dict | None:
+    async with aiohttp.ClientSession(headers=OPENROUTER_HEADERS) as session:
+        async with session.get(OPENAI_BASE_URL+"/models") as request:
+            response = await request.json()
+
+    for model in response["data"]:
+        if model["id"] == model_string:
             return model
