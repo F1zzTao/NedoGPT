@@ -25,6 +25,7 @@ from bot.utils import (
     censor_result,
     find_model_by_id,
     find_model_by_request,
+    is_model_free,
     moderate_query,
     process_main_prompt,
 )
@@ -464,10 +465,15 @@ async def handle_set_model(user_id: int, model_string: str) -> str | None:
         if not model_string.isdigit():
             if len(model_string.split("/")) != 2:
                 return
-            if not model_string.endswith(":free"):
+
+            is_free = await is_model_free(model_string)
+            if isinstance(is_free, dict):
+                model_price_prompt = float(is_free["prompt"])*1_000_000
+                model_price_completed = float(is_free["completion"])*1_000_000
                 return (
-                    f"{settings.emojis.system} При выборе кастомной модели можно устанавливать только те,"
-                    " которые бесплатные (то есть, все, которые заканчиваются на :free)."
+                    f"{settings.emojis.system} При выборе кастомной модели можно устанавливать только бесплатные модели,"
+                    f" а эта стоит аж ${model_price_prompt}/М токенов + ${model_price_completed}/М токенов!"
+                    " Дорого!!"
                 )
             is_custom = True
 

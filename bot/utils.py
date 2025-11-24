@@ -1,4 +1,5 @@
 import re
+from typing import overload, Literal
 
 import aiohttp
 from vkbottle.bot import Message
@@ -92,16 +93,44 @@ def find_model_by_id(models: list[Model], model_id: str) -> Model | None:
             return model
 
 
-async def find_model_by_request(model_string: str) -> Model | None:
+async def get_model_list() -> dict:
     async with aiohttp.ClientSession(headers=OPENROUTER_HEADERS) as session:
         async with session.get(settings.OPENAI_BASE_URL+"/models") as request:
             response = await request.json()
+    return response["data"]
 
-    for model in response["data"]:
+@overload
+async def find_model_by_request(model_string: str, raw: Literal[True]) -> dict | None: ...
+@overload
+async def find_model_by_request(model_string: str, raw: Literal[False]) -> Model | None: ...
+@overload
+async def find_model_by_request(model_string: str) -> Model | None: ...
+
+async def find_model_by_request(model_string: str, raw: bool = False) -> Model | dict | None:
+    models = await get_model_list()
+
+    for model in models:
         if model["id"] == model_string:
+            if raw:
+                return model
             new_model = Model(
                 id=model["id"],
                 name=model["id"],
                 display_name=model["name"]
             )
             return new_model
+
+
+async def is_model_free(model_string: str) -> bool | dict | None:
+    model = await find_model_by_request(model_string, raw=True)
+    if not model:
+        return
+
+    pricing = model.get("pricing")
+    if not pricing:
+        return
+
+    if any(pricing[_type] != "0" for _type in pricing):
+        return pricing
+
+    return True
