@@ -4,13 +4,13 @@ import random
 from vkbottle import BaseMiddleware
 from vkbottle.bot import Message
 
-from bot.constants import DONATION_MSG, DONATION_MSG_CHANCE
+from bot.core.config import DONATION_MSG, settings
 
 
 class DonationMsgMiddleware(BaseMiddleware[Message]):
     async def post(self):
         if not self.handlers:
             return
-        if random.random() < DONATION_MSG_CHANCE:
+        if random.random() < settings.donation_msg_chance:
             await asyncio.sleep(0.3)
             await self.event.answer(DONATION_MSG)

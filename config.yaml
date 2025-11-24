@@ -133,18 +133,27 @@ models:
     template: null
     bad_russian: false
     price: 0
+    deprecation:
+      warning: true
+      is_deprecated: false
 
   - id: "17"
     name: moonshotai/kimi-k2:free
     template: null
     bad_russian: false
     price: 0
+    deprecation:
+      warning: true
+      is_deprecated: true
 
   - id: "18"
     name: deepseek/deepseek-chat-v3.1:free
     template: null
     bad_russian: false
     price: 0
+    deprecation:
+      warning: true
+      is_deprecated: false
 
   - id: "19"
     name: tngtech/deepseek-r1t-chimera:free
@@ -153,10 +162,7 @@ models:
     price: 0
 
 default_model_id: "18"
-
-paths:
-  db: "./db.db"
-  instruction_templates: "./instruction_templates"
+instruction_template_path: "./instruction_templates"
 
 vk_censor_words: ["onion", "vtope", "vto.pe", "vto pe", "сова никогда не спит"]
 

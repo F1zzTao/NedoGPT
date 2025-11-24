@@ -1,6 +1,6 @@
 from loguru import logger
 
-from bot.constants import VK_ADMIN_ID
+from bot.core.config import settings
 from bot.core.loader import tg_bot
 from bot.database.database import sessionmaker
 from bot.services.moods import add_default_mood
@@ -13,7 +13,7 @@ async def on_startup() -> None:
     tg_bot_id = str(bot_info.unwrap().id)
 
     async with sessionmaker() as session:
-        result = await add_default_mood(session, int(VK_ADMIN_ID))
+        result = await add_default_mood(session, int(settings.VK_ADMIN_ID))
 
     if result:
         logger.info("Successfully added the default mood")

@@ -1,7 +1,7 @@
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bot.constants import MODELS
+from bot.core.config import Model, settings
 from bot.database.models import UserModel
 from bot.utils import find_model_by_id, find_model_by_request
 
@@ -57,7 +57,7 @@ async def update_user_value(session: AsyncSession, user_id: int, key, value) -> 
     await session.commit()
 
 
-async def get_user_model(session: AsyncSession, user_id: int) -> dict | None:
+async def get_user_model(session: AsyncSession, user_id: int) -> Model | None:
     """Return user's current model."""
     query = select(UserModel.current_model_id).filter_by(id=user_id).limit(1)
 
@@ -65,12 +65,10 @@ async def get_user_model(session: AsyncSession, user_id: int) -> dict | None:
 
     model_id = result.scalar_one()
     if model_id.isdigit():
-        model = find_model_by_id(MODELS, model_id)
-        if model:
-            model["source"] = "bot"
+        model = find_model_by_id(settings.models, model_id)
         return model
     else:
         model = await find_model_by_request(model_id)
         if model:
-            model["source"] = "openrouter"
+            model.source = "openrouter"
         return model

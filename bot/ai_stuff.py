@@ -2,8 +2,6 @@ import aiohttp
 import tiktoken
 from loguru import logger
 
-from bot.constants import SEPARATOR_TOKEN
-
 
 def num_tokens_from_string(string: str, model: str = "gpt-4o") -> int:
     encoding = tiktoken.encoding_for_model(model)
@@ -26,7 +24,6 @@ async def create_response(
     json_data = {
         "model": model,
         "max_tokens": 1000,
-        "stop": [SEPARATOR_TOKEN],
         "reasoning": {
             "exclude": True
         }

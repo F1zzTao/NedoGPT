@@ -6,7 +6,7 @@ from vkbottle_types.objects import UsersUserFull
 
 from bot import handlers
 from bot.base import UserInfo
-from bot.constants import SYSTEM_EMOJI, VK_BOT_ID
+from bot.core.config import settings
 from bot.core.loader import vk_api
 from bot.vk.keyboards_vk import OPEN_SETTINGS_KBD, SETTINGS_KBD
 from bot.vk.vk_middlewares import DonationMsgMiddleware
@@ -54,11 +54,13 @@ async def ai_txt_handler(message: VkMessage, query: str):
 
         reply_user_info = UserInfo(message.reply_message.from_id, reply_full_name)
 
-    wait_msg = await message.reply(f"{SYSTEM_EMOJI} Генерируем ответ, пожалуйста подождите...")
-    msg_reply = await handlers.handle_ai(
-        query, user_info, VK_BOT_ID, reply_user_info, reply_query  # pyright: ignore
+    wait_msg = await message.reply(
+        f"{settings.emojis.system} Генерируем ответ, пожалуйста подождите..."
     )
-    await message.ctx_api.messages.edit(
+    msg_reply = await handlers.handle_ai(
+        query, user_info, settings.VK_GROUP_ID, reply_user_info, reply_query
+    )
+    await vk_api.messages.edit(
         peer_id=message.peer_id,
         cmid=wait_msg.conversation_message_id,
         message=msg_reply,

@@ -6,7 +6,7 @@ import yaml
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 from unidecode import unidecode
 
-from bot.constants import AI_EMOJI, INSTRUCTION_TEMPLATES_PATH, SEPARATOR_TOKEN
+from bot.core.config import settings
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,7 @@ class Conversation:
         return self
 
     def render(self, incl_full_name: bool = True):
-        return f"\n{SEPARATOR_TOKEN}".join(
+        return "\n".join(
             [message.render(incl_full_name) for message in self.messages]
         )
 
@@ -61,7 +61,7 @@ class Prompt:
         rendered = self.full_render(bot_id)
 
         async with aiofiles.open(
-            f"{INSTRUCTION_TEMPLATES_PATH}/{template_name}.yaml", 'r', encoding='utf-8'
+            f"{settings.instruction_template_path}/{template_name}.yaml", 'r', encoding='utf-8'
         ) as f:
             content = await f.read()
         data = yaml.safe_load(content)
@@ -79,7 +79,7 @@ class Prompt:
             if "-"+bot_id == message.user_id:
                 yield {
                     "role": "assistant",
-                    "content": message.render(incl_full_name=False).replace(AI_EMOJI+' ', ''),
+                    "content": message.render(incl_full_name=False).replace(settings.emojis.ai+' ', ''),
                 }
             else:
                 yield {

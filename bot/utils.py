@@ -5,21 +5,15 @@ from vkbottle.bot import Message
 from vkbottle_types.objects import MessagesMessageAttachmentType, PhotosPhotoSizes
 
 from bot import ai_stuff
-from bot.constants import (
-    CENSOR_WORDS,
-    MAX_IMAGE_WIDTH,
-    OPENAI_BASE_URL,
-    OPENROUTER_HEADERS,
-    SYSTEM_EMOJI,
-)
+from bot.core.config import OPENROUTER_HEADERS, Model, settings
 
 
 def pick_size(sizes: list[PhotosPhotoSizes]) -> str | None:
     sizes_widths = [photo.width for photo in sizes]
-    filtered_sizes = [size for size in sizes_widths if size <= MAX_IMAGE_WIDTH]
+    filtered_sizes = [size for size in sizes_widths if size <= settings.max_image_width]
 
     if not filtered_sizes:
-        closest_size = min(sizes_widths, key=lambda x: abs(x - MAX_IMAGE_WIDTH))
+        closest_size = min(sizes_widths, key=lambda x: abs(x - settings.max_image_width))
     else:
         closest_size = max(filtered_sizes)
 
@@ -75,7 +69,7 @@ async def moderate_query(query: str) -> str | None:
     num_tokens = ai_stuff.num_tokens_from_string(query, "gpt-4o")
     if num_tokens > 4000:
         return (
-            f"{SYSTEM_EMOJI} В сообщении более 4000"
+            f"{settings.emojis.system} В сообщении более 4000"
             f" токенов ({num_tokens})! Используйте меньше слов."
         )
 
@@ -87,22 +81,27 @@ def censor_result(query: str) -> str:
     # Remove links
     query = re.sub(r'\.(?=[^\s])', '. ', query)
 
-    for censor in CENSOR_WORDS:
+    for censor in settings.vk_censor_words:
         query = query.replace(censor, "***")
     return query
 
 
-def find_model_by_id(models: list[dict], model_id: str) -> dict | None:
+def find_model_by_id(models: list[Model], model_id: str) -> Model | None:
     for model in models:
-        if str(model["id"]) == model_id:
+        if model.id == model_id:
             return model
 
 
-async def find_model_by_request(model_string: str) -> dict | None:
+async def find_model_by_request(model_string: str) -> Model | None:
     async with aiohttp.ClientSession(headers=OPENROUTER_HEADERS) as session:
-        async with session.get(OPENAI_BASE_URL+"/models") as request:
+        async with session.get(settings.OPENAI_BASE_URL+"/models") as request:
             response = await request.json()
 
     for model in response["data"]:
         if model["id"] == model_string:
-            return model
+            new_model = Model(
+                id=model["id"],
+                name=model["id"],
+                display_name=model["name"]
+            )
+            return new_model

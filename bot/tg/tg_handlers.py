@@ -10,7 +10,7 @@ from telegrinder.types import User
 
 from bot import handlers
 from bot.base import UserInfo
-from bot.constants import SYSTEM_EMOJI
+from bot.core.config import settings
 from bot.core.loader import dp
 from bot.tg.keyboards_tg import OPEN_SETTINGS_KBD, SETTINGS_KBD
 
@@ -52,7 +52,7 @@ async def ai_handler(message: Message, query: str):
 
     user = UserInfo(message.from_user.id, full_name)
 
-    wait_msg = await message.reply(f"{SYSTEM_EMOJI} Генерируем ответ, пожалуйста подождите...")
+    wait_msg = await message.reply(f"{settings.emojis.system} Генерируем ответ, пожалуйста подождите...")
     msg_reply = await handlers.handle_ai(
         query, user, tg_bot_id, reply_user, reply_query
     )

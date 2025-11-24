@@ -2,18 +2,7 @@ from loguru import logger
 
 from bot import ai_stuff
 from bot.base import Conversation, Message, Prompt, UserInfo
-from bot.constants import (
-    AI_EMOJI,
-    DEFAULT_MODEL_ID,
-    HELP_MSG,
-    MODELS,
-    OPENAI_BASE_URL,
-    OPENROUTER_HEADERS,
-    SYSTEM_BOT_PROMPT,
-    SYSTEM_EMOJI,
-    SYSTEM_USER_PROMPT,
-    VK_ADMIN_ID,
-)
+from bot.core.config import HELP_MSG, OPENROUTER_HEADERS, Model, settings
 from bot.database.database import sessionmaker
 from bot.database.models import MoodModel, UserModel
 from bot.services.moods import (
@@ -32,7 +21,13 @@ from bot.services.users import (
     update_user_value,
     user_exists,
 )
-from bot.utils import censor_result, find_model_by_id, find_model_by_request, moderate_query, process_main_prompt
+from bot.utils import (
+    censor_result,
+    find_model_by_id,
+    find_model_by_request,
+    moderate_query,
+    process_main_prompt,
+)
 
 
 async def handle_start(user_id: int, platform: str) -> tuple[str, bool]:
@@ -41,16 +36,16 @@ async def handle_start(user_id: int, platform: str) -> tuple[str, bool]:
         # ? Does TG works the same way?
         # Groups can't have an account
         return (
-            f"{SYSTEM_EMOJI} Нет, ботёнок, для создания аккаунта ты должен быть человеком!", False
+            f"{settings.emojis.system} Нет, ботёнок, для создания аккаунта ты должен быть человеком!", False
         )
 
     async with sessionmaker() as session:
         if (await user_exists(session, user_id)):
             # Person is already registered
-            return (f"{SYSTEM_EMOJI} Гений, у тебя уже есть аккаунт в боте. Смирись с этим.", False)
+            return (f"{settings.emojis.system} Гений, у тебя уже есть аккаунт в боте. Смирись с этим.", False)
 
         await add_user(session, user_id, platform)
-    return (f"{SYSTEM_EMOJI} Аккаунт готов; теперь вы можете настраивать поведение бота!", True)
+    return (f"{settings.emojis.system} Аккаунт готов; теперь вы можете настраивать поведение бота!", True)
 
 
 def handle_help() -> str:
@@ -68,7 +63,7 @@ async def handle_ai(
         db_user = await get_user(session, user.user_id)
         if not db_user:
             return (
-                f"{SYSTEM_EMOJI} У вас нет аккаунта! Аккаунт в этом боте можно создать,"
+                f"{settings.emojis.system} У вас нет аккаунта! Аккаунт в этом боте можно создать,"
                 " написав команду \"!начать\""
             )
 
@@ -95,35 +90,31 @@ async def handle_ai(
 
         conversation_text = conv.render(incl_full_name=False)
 
-        user_model: dict | None = await get_user_model(session, user.user_id)
+        user_model = await get_user_model(session, user.user_id)
         if user_model is None:
             logger.warning(f"User {user.user_id}'s model doesn't exist anymore, fallback to default")
 
-            default_model = find_model_by_id(MODELS, DEFAULT_MODEL_ID)
+            default_model = find_model_by_id(settings.models, settings.default_model_id)
             if default_model is None:
-                default_model = {"name": "???"}
+                default_model = Model(id="0", name="???")
 
-            await update_user_value(session, user.user_id, UserModel.current_model_id, DEFAULT_MODEL_ID)
+            await update_user_value(session, user.user_id, UserModel.current_model_id, settings.default_model_id)
 
             return (
-                f"{SYSTEM_EMOJI} Модели, которая у вас сейчас установлена, больше"
+                f"{settings.emojis.system} Модели, которая у вас сейчас установлена, больше"
                 " не существует. Мы автоматически поменяли её на модель по умолчанию"
-                f" ({default_model['name']})."
+                f" ({default_model.name})."
                 "\nПопробуйте ввести команду ещё раз, или выберите другую модель в списке \"!модели\""
             )
 
-        model_name: str = ""
-        if user_model["source"] == "bot":
-            model_name = user_model['name']
-            if user_model.get("deprecation"):
-                if user_model["deprecation"]["is_deprecated"]:
-                    return (
-                        f"{SYSTEM_EMOJI} Выбранная модель ({user_model['name']}) устарела. Пожалуйста,"
-                        " выберите другую через команду \"!модель <айди модели>\". Посмотреть все"
-                        " модели можно командой \"!модели\""
+        model_name = user_model.name
+        if user_model.deprecation:
+            if user_model.deprecation.is_deprecated:
+                return (
+                    f"{settings.emojis.system} Выбранная модель ({user_model.name}) устарела. Пожалуйста,"
+                    " выберите другую через команду \"!модель <айди модели>\". Посмотреть все"
+                    " модели можно командой \"!модели\""
                     )
-        else:
-            model_name = user_model['id']
 
 
         fail_reason = await moderate_query(conversation_text)
@@ -144,8 +135,8 @@ async def handle_ai(
         user_persona  = db_user.persona
 
     system_prompt = await process_main_prompt(
-        system_prompt=SYSTEM_BOT_PROMPT,
-        persona_prompt=SYSTEM_USER_PROMPT,
+        system_prompt=settings.prompts.system_bot,
+        persona_prompt=settings.prompts.system_user,
         mood=user_mood_instr,
         persona=user_persona
     )
@@ -159,31 +150,29 @@ async def handle_ai(
 
     messages_rendered = None
     prompt_rendered = None
-    if user_model['source'] == 'bot' and user_model['template']:
-        prompt_rendered = await prompt.full_render_template(bot_id, user_model['template'])
+    if user_model.source == 'bot' and user_model.template:
+        prompt_rendered = await prompt.full_render_template(bot_id, user_model.template)
     else:
         messages_rendered = prompt.full_render(bot_id)
 
     result = await ai_stuff.create_response(
-        OPENROUTER_HEADERS, OPENAI_BASE_URL, messages_rendered, prompt_rendered, model_name
+        OPENROUTER_HEADERS, settings.OPENAI_BASE_URL, messages_rendered, prompt_rendered, model_name
     )
 
     if not result:
         return (
-            f"{SYSTEM_EMOJI} Ответ от бота был съеден. Все равно он был невкусный (попробуйте ещё раз)."
+            f"{settings.emojis.system} Ответ от бота был съеден. Все равно он был невкусный (попробуйте ещё раз)."
         )
 
     if result["status"] == "error":
         return (
-            f"{SYSTEM_EMOJI} Ошибка на стороне OpenRouter: {result['response']}"
+            f"{settings.emojis.system} Ошибка на стороне OpenRouter: {result['response']}"
         )
 
     response = result["response"]
     response = censor_result(response).strip()
 
-    # Taking some sushi from the user
-    # await increase_value(user.user_id, "sushi_amount", -model_price, "sushi_balance")
-    msg_reply = f"{AI_EMOJI} {response}"
+    msg_reply = f"{settings.emojis.ai} {response}"
 
     return msg_reply
 
@@ -192,7 +181,7 @@ async def handle_settings(user_id: int) -> tuple[str, bool]:
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
             return (
-                f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\"",
+                f"{settings.emojis.system} Для этого нужен аккаунт! Создайте его командой \"!начать\"",
                 False
             )
 
@@ -208,24 +197,20 @@ async def handle_settings(user_id: int) -> tuple[str, bool]:
 
         user_model = await get_user_model(session, user_id)
     if not user_model:
-        user_model = {
-            "name": "???"
-        }
+        user_model = Model(id="0", name="???")
 
-    model_display_name = None
-    if user_model['source'] == 'bot':
-        model_name = user_model['name']
-        if user_model.get("deprecation"):
-            if user_model["deprecation"]["warning"]:
+    if user_model.source == 'bot':
+        model_name = user_model.name
+        if user_model.deprecation:
+            if user_model.deprecation.warning:
                 model_name += " ⚠️"
     else:
-        model_name = user_model['id']
-        model_display_name = user_model['name']
+        model_name = user_model.id
 
-    current_model_string = (f"{model_display_name} ({model_name})" if model_display_name else model_name)
+    current_model_string = (f"{user_model.display_name} ({model_name})" if user_model.display_name else model_name)
 
     return (
-        f"{SYSTEM_EMOJI} | Текущий муд: {mood_name} (id: {mood_id})\n"
+        f"{settings.emojis.system} | Текущий муд: {mood_name} (id: {mood_id})\n"
         f"🤖 | Текущая модель: {current_model_string}",
         True
     )
@@ -236,9 +221,9 @@ async def handle_mood_list() -> str:
         moods = await get_all_moods(session, public_only=True)
 
     if len(moods) == 0:
-        return f"{SYSTEM_EMOJI} Публичных мудов в боте пока не существует!"
+        return f"{settings.emojis.system} Публичных мудов в боте пока не существует!"
 
-    all_moods_str = f"{SYSTEM_EMOJI} Вот все текущие публичные муды:"
+    all_moods_str = f"{settings.emojis.system} Вот все текущие публичные муды:"
     for mood in moods:
         all_moods_str += f"\n• {mood.name} (id: {mood.id})"
     return all_moods_str
@@ -248,9 +233,9 @@ async def mood_exists(user_id: int, mood_id: int) -> str | MoodModel:
     async with sessionmaker() as session:
         mood = await get_mood(session, mood_id)
 
-    if not mood or (mood.is_private is True and mood.user_id not in (str(user_id), VK_ADMIN_ID)):
+    if not mood or (mood.is_private is True and mood.user_id not in (str(user_id), settings.VK_ADMIN_ID)):
         # If this mood doesn't exists or it's private...
-        return f"{SYSTEM_EMOJI} Айди с таким мудом не существует или он приватный!"
+        return f"{settings.emojis.system} Айди с таким мудом не существует или он приватный!"
     return mood
 
 
@@ -261,7 +246,7 @@ async def handle_mood_info(mood: MoodModel, full_name: str | None = None) -> str
         mood_by = "пользователя"
 
     return (
-        f"{SYSTEM_EMOJI} Муд от {mood_by} - id: {mood.id}"
+        f"{settings.emojis.system} Муд от {mood_by} - id: {mood.id}"
         f"\n👤 | Имя: {mood.name}"
         f"\n🗒 | Описание: {mood.description or '<Нету>'}"
         f"\n🤖 | Инструкции: {mood.instructions}"
@@ -271,21 +256,21 @@ async def handle_mood_info(mood: MoodModel, full_name: str | None = None) -> str
 async def handle_set_mood(user_id: int, mood_id: int) -> str:
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
-            return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
+            return f"{settings.emojis.system} Для этого нужен аккаунт! Создайте его командой \"!начать\""
 
         custom_mood = await get_mood(session, mood_id)
         if not custom_mood or (custom_mood.is_private is True and user_id != custom_mood.user_id):
-            return f"{SYSTEM_EMOJI} Такого муда не существует!"
+            return f"{settings.emojis.system} Такого муда не существует!"
         mood_id = custom_mood.id
         mood_name = custom_mood.name
 
         await update_user_value(session, user_id, UserModel.current_mood_id, mood_id)
-    return f"{SYSTEM_EMOJI} Вы успешно выбрали муд \"{mood_name}\" (id: {mood_id})"
+    return f"{settings.emojis.system} Вы успешно выбрали муд \"{mood_name}\" (id: {mood_id})"
 
 
 def handle_create_mood_info(cp: str = "!") -> str:
     return (
-        f"{SYSTEM_EMOJI} Чтобы создать новый муд,"
+        f"{settings.emojis.system} Чтобы создать новый муд,"
         f" напишите \"{cp}создать муд <инструкции>\""
         "\nИнструкции лучше всего писать на английском!"
         "\nНапример: You are now a cute anime girl. Don't forget to use :3 and other things"
@@ -297,7 +282,7 @@ async def handle_create_mood(user_id: int, instr: str, cp: str = "!") -> str:
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
             return (
-                f"{SYSTEM_EMOJI} Гений, чтобы создать муд,"
+                f"{settings.emojis.system} Гений, чтобы создать муд,"
                 f" нужно сначала зарегаться командой \"{cp}начать\"."
             )
 
@@ -306,8 +291,8 @@ async def handle_create_mood(user_id: int, instr: str, cp: str = "!") -> str:
             return fail_reason
 
         user_moods = await get_all_moods(session, user_id)
-        if len(user_moods) >= 10 and str(user_id) != VK_ADMIN_ID:
-            return f"{SYSTEM_EMOJI} Вы не можете создать больше 10 мудов!"
+        if len(user_moods) >= 10 and str(user_id) != settings.VK_ADMIN_ID:
+            return f"{settings.emojis.system} Вы не можете создать больше 10 мудов!"
 
         # Creating mood
         inserted_id = await add_mood(
@@ -317,7 +302,7 @@ async def handle_create_mood(user_id: int, instr: str, cp: str = "!") -> str:
     # TODO: Make a keyboard for choosing a just created mood
 
     return (
-        f"{SYSTEM_EMOJI} Вы создали новый муд! Его айди: {inserted_id}"
+        f"{settings.emojis.system} Вы создали новый муд! Его айди: {inserted_id}"
         "\nТеперь вы можете:"
         f"\n1. Поменять название, с помощью команды \"{cp}муд имя {inserted_id} <название муда>\"."
         "\n2. Поменять описание, с помощью команды"
@@ -334,7 +319,7 @@ async def handle_edit_mood(
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
             return (
-                f"{SYSTEM_EMOJI} Что ты там менять собрался? У тебя даже аккаунта нет!"
+                f"{settings.emojis.system} Что ты там менять собрался? У тебя даже аккаунта нет!"
                 f"\n... Поэтому можешь его создать командой \"{cp}начать\"."
             )
         params = params_str.split()
@@ -343,13 +328,13 @@ async def handle_edit_mood(
             mood_id = int(params[1])
         except (KeyError, ValueError):
             return (
-                f"{SYSTEM_EMOJI} Ты чет не то написал, броу!"
+                f"{settings.emojis.system} Ты чет не то написал, броу!"
                 "\nДоступные параметры: имя, описание, видимость"
             )
 
         mood = await get_mood(session, mood_id)
         if not mood or mood.user_id != user_id:
-            return f"{SYSTEM_EMOJI} Гений, это не твой муд! Сделай его копию и меняй как хочешь."
+            return f"{settings.emojis.system} Гений, это не твой муд! Сделай его копию и меняй как хочешь."
 
         success_msg = ""
         if params[0] in ("имя", "название"):
@@ -387,26 +372,26 @@ async def handle_edit_mood(
             await update_mood_value(session, mood_id, MoodModel.instructions, mood_instr)
             success_msg = "Вы успешно поменяли инструкции муда!"
         else:
-            return f"{SYSTEM_EMOJI} Эээ... Что? Такого параметра нету, уж извини!"
-    return SYSTEM_EMOJI + " " + success_msg
+            return f"{settings.emojis.system} Эээ... Что? Такого параметра нету, уж извини!"
+    return settings.emojis.system + " " + success_msg
 
 
 async def handle_my_moods(user_id: int, cp: str = "!") -> str:
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
             return (
-                f"{SYSTEM_EMOJI} Гений, чтобы сделать муд,"
+                f"{settings.emojis.system} Гений, чтобы сделать муд,"
                 f" нужно сначала зарегаться командой \"{cp}начать\"."
             )
 
         user_moods = await get_all_moods(session, user_id)
         if len(user_moods) == 0:
             return (
-                f"{SYSTEM_EMOJI} Удивительно, но вы ещё не создавали собственный муд!"
+                f"{settings.emojis.system} Удивительно, но вы ещё не создавали собственный муд!"
                 f"\nЧтобы его создать, напишите \"{cp}создать муд\""
             )
 
-        user_moods_message = f"{SYSTEM_EMOJI} Ваши муды:"
+        user_moods_message = f"{settings.emojis.system} Ваши муды:"
         for mood in user_moods:
             user_moods_message += f"\n• {mood.name} (id: {mood.id})"
 
@@ -415,7 +400,7 @@ async def handle_my_moods(user_id: int, cp: str = "!") -> str:
 
 def handle_persona_info(cp: str = "!") -> str:
     return (
-        f"{SYSTEM_EMOJI} Персону, как и инструкции, желательно писать на английском!"
+        f"{settings.emojis.system} Персону, как и инструкции, желательно писать на английском!"
         f"\nПример: {cp}персона I'm Hu Tao. I work in Wangsheng Funeral Parlor"
         " together with Zhongli. I have very long brown twintail hair and flower-shaped"
         " pupils."
@@ -425,46 +410,42 @@ def handle_persona_info(cp: str = "!") -> str:
 async def handle_set_persona(user_id: int, persona: str) -> str:
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
-            return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
+            return f"{settings.emojis.system} Для этого нужен аккаунт! Создайте его командой \"!начать\""
 
         fail_reason = await moderate_query(persona)
         if fail_reason:
             return fail_reason
 
         await update_user_value(session, user_id, UserModel.persona, persona)
-    return f"{SYSTEM_EMOJI} Вы успешно установили персону!"
+    return f"{settings.emojis.system} Вы успешно установили персону!"
 
 
 async def handle_my_persona(user_id: int) -> str:
     async with sessionmaker() as session:
         user = await get_user(session, user_id)
         if not user:
-            return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
+            return f"{settings.emojis.system} Для этого нужен аккаунт! Создайте его командой \"!начать\""
 
     if user.persona:
-        msg = f"{SYSTEM_EMOJI} Вот ваша персона: {user.persona}"
+        msg = f"{settings.emojis.system} Вот ваша персона: {user.persona}"
     else:
-        msg = f"{SYSTEM_EMOJI} У вас ещё не установлена персона!"
+        msg = f"{settings.emojis.system} У вас ещё не установлена персона!"
     return msg
 
 
 async def handle_models_list(cp: str = "!") -> str:
-    msg = f"{SYSTEM_EMOJI} Вот все текущие доступные модели бота:"
-    for model in MODELS:
-        model_id = model["id"]
-        model_name = model['name']
-        model_price = model['price']
-        if model_price > 0:
-            model_price_text = f" - {model_price} 🍣"
+    msg = f"{settings.emojis.system} Вот все текущие доступные модели бота:"
+    for model in settings.models:
+        if model.price > 0:
+            model_price_text = f" - {model.price} 🍣"
         else:
             model_price_text = ""
-        new_msg = f"\n• {model_name} (id: {model_id}){model_price_text}"
+        new_msg = f"\n• {model.name} (id: {model.id}){model_price_text}"
 
-        deprecation_info: dict | None = model.get("deprecation")
-        if deprecation_info and deprecation_info["is_deprecated"]:
+        if model.deprecation and model.deprecation.is_deprecated:
             # Model is deprecated, ignoring it
             continue
-        if deprecation_info and deprecation_info["warning"]:
+        if model.deprecation and model.deprecation.warning:
             # Model will become deprecated soon
             new_msg += " ⚠️"
 
@@ -477,7 +458,7 @@ async def handle_models_list(cp: str = "!") -> str:
 async def handle_set_model(user_id: int, model_string: str) -> str | None:
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
-            return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
+            return f"{settings.emojis.system} Для этого нужен аккаунт! Создайте его командой \"!начать\""
 
         is_custom = False
         if not model_string.isdigit():
@@ -485,7 +466,7 @@ async def handle_set_model(user_id: int, model_string: str) -> str | None:
                 return
             if not model_string.endswith(":free"):
                 return (
-                    f"{SYSTEM_EMOJI} При выборе кастомной модели можно устанавливать только те,"
+                    f"{settings.emojis.system} При выборе кастомной модели можно устанавливать только те,"
                     " которые бесплатные (то есть, все, которые заканчиваются на :free)."
                 )
             is_custom = True
@@ -493,43 +474,37 @@ async def handle_set_model(user_id: int, model_string: str) -> str | None:
         model_name = None
         model_openrouter_id = None
         if not is_custom:
-            selected_model: dict | None = find_model_by_id(MODELS, model_string)
+            selected_model: Model | None = find_model_by_id(settings.models, model_string)
             if selected_model is None:
-                return f"{SYSTEM_EMOJI} Модели с таким айди пока не существует!"
+                return f"{settings.emojis.system} Модели с таким айди пока не существует!"
 
-            if selected_model.get("deprecation") and selected_model["deprecation"]["is_deprecated"]:
+            if selected_model.deprecation and selected_model.deprecation.is_deprecated:
                 return (
-                    f"{SYSTEM_EMOJI} Модель {selected_model['name']} устарела и больше не поддерживается,"
+                    f"{settings.emojis.system} Модель {selected_model.name} устарела и больше не поддерживается,"
                     " пожалуйста выберите другую!"
                 )
-            model_name = selected_model["name"]
+            model_name = selected_model.name
         else:
             model = await find_model_by_request(model_string)
             if not model:
-                return f"{SYSTEM_EMOJI} Такой модели на OpenRouter не существует!"
+                return f"{settings.emojis.system} Такой модели на OpenRouter не существует!"
 
-            pricing = model["pricing"]
-            if pricing["prompt"] != "0" or pricing["completion"] != "0" or pricing["request"] != "0":
-                return (
-                    f"{SYSTEM_EMOJI} Обманочка - айди модели заканчивается на :free, но на деле она не"
-                    " бесплатная. Как так вышло...?"
-                )
-            model_name = model["name"]
-            model_openrouter_id = model["id"]
+            model_name = model.name
+            model_openrouter_id = model.id
 
         await update_user_value(session, user_id, UserModel.current_model_id, model_string)
 
     msg = (
-        f"{SYSTEM_EMOJI} Вы успешно установили модель {model_name}!"
+        f"{settings.emojis.system} Вы успешно установили модель {model_name}!"
     )
     if not is_custom:
-        if selected_model.get("deprecation") and selected_model["deprecation"]["warning"]:
+        if selected_model.deprecation and selected_model.deprecation.warning:
             msg += (
                 "\n\n⚠️ Внимание: выбранная модель устарела и скоро будет удалена из бота. "
                 "Используйте другую модель."
             )
 
-        if selected_model['bad_russian']:
+        if selected_model.bad_russian:
             msg += (
                 "\n\n⚠️ Внимание: выбранная модель была в основном натренирована на английских"
                 " данных и с русским работает очень плохо. Рекомендуется использовать английский"
@@ -547,37 +522,37 @@ async def handle_set_model(user_id: int, model_string: str) -> str | None:
 async def handle_del_mood(user_id: int, mood_id: int) -> str:
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
-            return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
+            return f"{settings.emojis.system} Для этого нужен аккаунт! Создайте его командой \"!начать\""
         mood = await get_mood(session, mood_id)
-        if not mood or (mood.user_id != user_id and str(user_id) != VK_ADMIN_ID):
+        if not mood or (mood.user_id != user_id and str(user_id) != settings.VK_ADMIN_ID):
             return (
-                f"{SYSTEM_EMOJI} Гений, это не твой муд. Если он тебя так раздражает,"
+                f"{settings.emojis.system} Гений, это не твой муд. Если он тебя так раздражает,"
                 " попроси его создателя удалить его."
             )
 
         await remove_mood(session, mood_id)
-    return f"{SYSTEM_EMOJI} Ваш позорный муд удален и больше вас не позорит!"
+    return f"{settings.emojis.system} Ваш позорный муд удален и больше вас не позорит!"
 
 
 async def handle_del_persona(user_id: int) -> str:
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
-            return f"{SYSTEM_EMOJI} Для этого нужен аккаунт! Создайте его командой \"!начать\""
+            return f"{settings.emojis.system} Для этого нужен аккаунт! Создайте его командой \"!начать\""
 
         await update_user_value(session, user_id, UserModel.persona, "")
-    return f"{SYSTEM_EMOJI} Персона успешно удалена!"
+    return f"{settings.emojis.system} Персона успешно удалена!"
 
 
 async def handle_del_account_warning(user_id: int) -> str:
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
             return (
-                f"{SYSTEM_EMOJI} Пока мы живем в 2025, этот гений живет в 2026"
+                f"{settings.emojis.system} Пока мы живем в 2025, этот гений живет в 2026"
                 "\nУ вас и так нет аккаунта. Отличная причина создать его командой \"!начать\"!"
             )
 
         msg = (
-            f"{SYSTEM_EMOJI} Вы уверены, что хотите удалить свой аккаунт?"
+            f"{settings.emojis.system} Вы уверены, что хотите удалить свой аккаунт?"
         )
 
         # ? Perhaps there's a better approach to handling account deletion when
@@ -597,19 +572,7 @@ async def handle_del_account_warning(user_id: int) -> str:
 async def handle_del_account(user_id: int) -> str:
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
-            return f"{SYSTEM_EMOJI} Для этого нужен аккаунт!"
+            return f"{settings.emojis.system} Для этого нужен аккаунт!"
 
         await remove_user(session, user_id)
-    return f"{SYSTEM_EMOJI} Готово... но зачем?"
-
-
-"""
-async def handle_admin_give_currency(user_id: int, value: int) -> str:
-    async with sessionmaker() as session:
-        has_balance = await get_value(user_id, "user_id", "sushi_balance")
-        if not has_balance:
-            return f"{SYSTEM_EMOJI} У [id{user_id}|этого] пользователя нету профиля!"
-
-        await increase_value(user_id, "sushi_amount", value, "sushi_balance")
-    return f"{SYSTEM_EMOJI} [id{user_id}|Этому] пользователю было выдано {value} суши!"
-"""
+    return f"{settings.emojis.system} Готово... но зачем?"

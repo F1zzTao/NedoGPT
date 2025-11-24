@@ -1,4 +1,3 @@
-from loguru import logger
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
