@@ -1,167 +1,29 @@
 models:
   - id: "1"
-    name: openai/gpt-3.5-turbo
+    name: "z-ai/glm-4.5-air:free"
     template: null
     bad_russian: false
-    price: 4
-    deprecation:
-      warning: true
-      is_deprecated: true
+    price: 0
 
   - id: "2"
-    name: openai/gpt-4o-mini
+    name: "openai/gpt-oss-20b:free"
     template: null
-    bad_russian: false
-    price: 2
-    deprecation:
-      warning: true
-      is_deprecated: true
+    bad_russian: true
+    price: 0
 
   - id: "3"
-    name: microsoft/wizardlm-2-7b
-    template: Vicuna-v1.1
-    bad_russian: true
-    price: 0
-    deprecation:
-      warning: true
-      is_deprecated: true
-
-  - id: "4"
-    name: google/gemma-2-9b-it:free
-    template: null
-    bad_russian: true
-    price: 0
-
-  - id: "5"
-    name: anthropic/claude-3.5-sonnet:beta
-    template: null
-    bad_russian: false
-    price: 4
-    deprecation:
-      warning: true
-      is_deprecated: true
-
-  - id: "6"
-    name: sao10k/l3-stheno-8b
-    template: Llama-v3
-    bad_russian: true
-    price: 1
-    deprecation:
-      warning: true
-      is_deprecated: true
-
-  - id: "7"
-    name: neversleep/llama-3.1-lumimaid-8b
-    template: Llama-v3
-    bad_russian: true
-    price: 1
-    deprecation:
-      warning: true
-      is_deprecated: true
-
-  - id: "8"
-    name: meta-llama/llama-3.2-3b-instruct:free
-    template: Llama-v3
-    bad_russian: true
-    price: 0
-    deprecation:
-      warning: true
-      is_deprecated: true
-
-  - id: "9"
-    name: meta-llama/llama-3.1-8b-instruct:free
-    template: Llama-v3
-    bad_russian: true
-    price: 0
-    deprecation:
-      warning: true
-      is_deprecated: true
-
-  - id: "10"
-    name: mistralai/mistral-7b-instruct:free
-    template: Mistral
-    bad_russian: false
-    price: 0
-    deprecation:
-      warning: true
-      is_deprecated: true
-
-  - id: "11"
-    name: sophosympatheia/midnight-rose-70b
-    template: Mistral
-    bad_russian: false
-    price: 3
-    deprecation:
-      warning: true
-      is_deprecated: true
-
-  - id: "12"
-    name: meta-llama/llama-3.1-70b-instruct:free
-    template: Llama-v3
-    bad_russian: true
-    price: 0
-    deprecation:
-      warning: true
-      is_deprecated: true
-
-  - id: "13"
-    name: eva-unit-01/eva-qwen-2.5-72b
-    template: ChatML
-    bad_russian: true
-    price: 3
-    deprecation:
-      warning: true
-      is_deprecated: true
-
-  - id: "14"
-    name: deepseek/deepseek-r1-0528:free
+    name: "google/gemma-3-27b-it:free"
     template: null
     bad_russian: false
     price: 0
-
-  - id: "15"
-    name: google/gemma-2-27b-it
-    template: null
-    bad_russian: false
-    price: 2
-    deprecation:
-      warning: true
-      is_deprecated: true
-
-  - id: "16"
-    name: deepseek/deepseek-chat-v3-0324:free
-    template: null
-    bad_russian: false
-    price: 0
-    deprecation:
-      warning: true
-      is_deprecated: false
-
-  - id: "17"
-    name: moonshotai/kimi-k2:free
-    template: null
-    bad_russian: false
-    price: 0
-    deprecation:
-      warning: true
-      is_deprecated: true
-
-  - id: "18"
-    name: deepseek/deepseek-chat-v3.1:free
-    template: null
-    bad_russian: false
-    price: 0
-    deprecation:
-      warning: true
-      is_deprecated: false
 
   - id: "19"
-    name: tngtech/deepseek-r1t-chimera:free
+    name: "tngtech/tng-r1t-chimera:free"
     template: null
     bad_russian: false
     price: 0
 
-default_model_id: "18"
+default_model_id: "1"
 instruction_template_path: "./instruction_templates"
 
 vk_censor_words: ["onion", "vtope", "vto.pe", "vto pe", "сова никогда не спит"]
