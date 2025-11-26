@@ -1,6 +1,7 @@
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bot.cache.redis import build_key, cached, clear_cache
 from bot.core.config import Model, settings
 from bot.database.models import UserModel
 from bot.utils import find_model_by_id, find_model_by_request
@@ -17,8 +18,11 @@ async def add_user(
 
     session.add(new_user)
     await session.commit()
+    await clear_cache(get_user, user_id)
+    await clear_cache(user_exists, user_id)
 
 
+@cached(key_builder=lambda session, user_id: build_key(user_id))
 async def get_user(
     session: AsyncSession, user_id: int
 ) -> UserModel | None:
@@ -31,6 +35,7 @@ async def get_user(
     return user
 
 
+@cached(key_builder=lambda session, user_id: build_key(user_id))
 async def user_exists(session: AsyncSession, user_id: int) -> bool:
     """Checks if the user is in the database."""
     query = select(UserModel.id).filter_by(id=user_id).limit(1)
@@ -57,6 +62,15 @@ async def update_user_value(session: AsyncSession, user_id: int, key, value) -> 
     await session.commit()
 
 
+async def set_user_model(session: AsyncSession, user_id: int, model_string: str) -> None:
+    query = update(UserModel).where(UserModel.id == user_id).values(current_model_id=model_string)
+
+    await session.execute(query)
+    await session.commit()
+    await clear_cache(get_user_model, user_id)
+
+
+@cached(key_builder=lambda session, user_id: build_key(user_id))
 async def get_user_model(session: AsyncSession, user_id: int) -> Model | None:
     """Return user's current model."""
     query = select(UserModel.current_model_id).filter_by(id=user_id).limit(1)

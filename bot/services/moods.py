@@ -2,6 +2,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bot.cache.redis import build_key, cached, clear_cache
 from bot.database.models import MoodModel, UserModel
 
 
@@ -28,6 +29,7 @@ async def add_mood(
     mood_id = new_mood.id
 
     await session.commit()
+    await clear_cache(get_mood, mood_id)
     return mood_id
 
 
@@ -63,6 +65,7 @@ async def add_default_mood(
         return False
 
 
+@cached(key_builder=lambda session, user_id=None, public_only=False: build_key(user_id, public_only))
 async def get_all_moods(
     session: AsyncSession, user_id: int | None = None, public_only: bool = False
 ) -> list[MoodModel]:
@@ -81,6 +84,7 @@ async def get_all_moods(
     return list(moods)
 
 
+@cached(key_builder=lambda session, mood_id: build_key(mood_id))
 async def get_mood(
     session: AsyncSession, mood_id: int
 ) -> MoodModel | None:
@@ -109,7 +113,25 @@ async def update_mood_value(session: AsyncSession, mood_id: int, key, value) -> 
     await session.commit()
 
 
+async def set_user_mood(session: AsyncSession, user_id: int, mood_id: int) -> None:
+    query = update(UserModel).where(UserModel.id == user_id).values(current_mood_id=mood_id)
+
+    await session.execute(query)
+    await session.commit()
+    await clear_cache(get_user_mood, user_id)
+
+
+@cached(key_builder=lambda session, user_id: build_key(user_id))
 async def get_user_mood(session: AsyncSession, user_id: int) -> MoodModel | None:
+    """Returns user's current mood
+
+    Args:
+        session (AsyncSession): SQLAlchemy asynchronous session
+        user_id (int): user's id
+
+    Returns:
+        MoodModel | None: MoodModel or nothing
+    """
     query = select(UserModel.current_mood_id).filter_by(id=user_id).limit(1)
     result = await session.execute(query)
     mood_id = result.scalar_one_or_none()

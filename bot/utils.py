@@ -1,11 +1,12 @@
 import re
-from typing import overload, Literal
+from typing import Literal, overload
 
 import aiohttp
 from vkbottle.bot import Message
 from vkbottle_types.objects import MessagesMessageAttachmentType, PhotosPhotoSizes
 
 from bot import ai_stuff
+from bot.cache.redis import cached
 from bot.core.config import OPENROUTER_HEADERS, Model, settings
 
 
@@ -93,6 +94,7 @@ def find_model_by_id(models: list[Model], model_id: str) -> Model | None:
             return model
 
 
+@cached(ttl=1800)
 async def get_model_list() -> dict:
     async with aiohttp.ClientSession(headers=OPENROUTER_HEADERS) as session:
         async with session.get(settings.OPENAI_BASE_URL+"/models") as request:

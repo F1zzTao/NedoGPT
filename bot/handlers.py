@@ -11,6 +11,7 @@ from bot.services.moods import (
     get_mood,
     get_user_mood,
     remove_mood,
+    set_user_mood,
     update_mood_value,
 )
 from bot.services.users import (
@@ -18,6 +19,7 @@ from bot.services.users import (
     get_user,
     get_user_model,
     remove_user,
+    set_user_model,
     update_user_value,
     user_exists,
 )
@@ -265,7 +267,7 @@ async def handle_set_mood(user_id: int, mood_id: int) -> str:
         mood_id = custom_mood.id
         mood_name = custom_mood.name
 
-        await update_user_value(session, user_id, UserModel.current_mood_id, mood_id)
+        await set_user_mood(session, user_id, mood_id)
     return f"{settings.emojis.system} Вы успешно выбрали муд \"{mood_name}\" (id: {mood_id})"
 
 
@@ -498,7 +500,7 @@ async def handle_set_model(user_id: int, model_string: str) -> str | None:
             model_name = model.name
             model_openrouter_id = model.id
 
-        await update_user_value(session, user_id, UserModel.current_model_id, model_string)
+        await set_user_model(session, user_id, model_string)
 
     msg = (
         f"{settings.emojis.system} Вы успешно установили модель {model_name}!"

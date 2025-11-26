@@ -67,6 +67,23 @@ class DBSettings(EnvBaseSettings):#
         return f"sqlite+aiosqlite:///{self.DB_PATH}"
 
 
+class CacheSettings(EnvBaseSettings):
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
+    REDIS_PASS: str | None = None
+
+    # REDIS_DATABASE: int = 1
+    # REDIS_USERNAME: int | None = None
+    # REDIS_TTL_STATE: int | None = None
+    # REDIS_TTL_DATA: int | None = None
+
+    @property
+    def redis_url(self) -> str:
+        if self.REDIS_PASS:
+            return f"redis://{self.REDIS_PASS}@{self.REDIS_HOST}:{self.REDIS_PORT}/0"
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
+
+
 class ModelDeprecation(BaseSettings):
     warning: bool
     is_deprecated: bool
@@ -110,7 +127,7 @@ class ConfigSettings(EnvBaseSettings):
     prompts: Prompts
 
 
-class Settings(BotSettings, OpenAISettings, DBSettings, ConfigSettings):
+class Settings(BotSettings, OpenAISettings, DBSettings, CacheSettings, ConfigSettings):
     DEBUG: bool = False
 
 
