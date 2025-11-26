@@ -101,7 +101,7 @@ async def handle_ai(
             if default_model is None:
                 default_model = Model(id="0", name="???")
 
-            await update_user_value(session, user.user_id, UserModel.current_model_id, settings.default_model_id)
+            await set_user_model(session, user.user_id, settings.default_model_id)
 
             return (
                 f"{settings.emojis.system} Модели, которая у вас сейчас установлена, больше"
