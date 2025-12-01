@@ -78,7 +78,9 @@ async def get_user_model(session: AsyncSession, user_id: int) -> Model | None:
     result = await session.execute(query)
 
     model_id = result.scalar_one()
-    if model_id.isdigit():
+    if not model_id:
+        return
+    elif model_id.isdigit():
         model = find_model_by_id(settings.models, model_id)
         return model
     else:

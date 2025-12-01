@@ -5,6 +5,7 @@ from bot.base import Conversation, Message, Prompt, UserInfo
 from bot.core.config import HELP_MSG, OPENROUTER_HEADERS, Model, settings
 from bot.database.database import sessionmaker
 from bot.database.models import MoodModel, UserModel
+from bot.services.generations import add_generation
 from bot.services.moods import (
     add_mood,
     get_all_moods,
@@ -172,10 +173,19 @@ async def handle_ai(
             f"{settings.emojis.system} Ошибка на стороне OpenRouter: {result['response']}"
         )
 
-    response = result["response"]
-    response = censor_result(response).strip()
 
-    msg_reply = f"{settings.emojis.ai} {response}"
+    response = result["response"]
+    async with sessionmaker() as session:
+        await add_generation(
+            session,
+            response,
+            user.user_id,
+            model_name,
+            user_mood.id
+        )
+
+    cens_response = censor_result(response).strip()
+    msg_reply = f"{settings.emojis.ai} {cens_response}"
 
     return msg_reply
 
