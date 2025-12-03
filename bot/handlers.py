@@ -1,4 +1,7 @@
+from typing import Literal, overload
+
 from loguru import logger
+from telegrinder.types import InlineKeyboardMarkup
 
 from bot import ai_stuff
 from bot.base import Conversation, Message, Prompt, UserInfo
@@ -24,6 +27,7 @@ from bot.services.users import (
     update_user_value,
     user_exists,
 )
+from bot.tg import keyboards_tg
 from bot.utils import (
     censor_result,
     find_model_by_id,
@@ -32,6 +36,7 @@ from bot.utils import (
     moderate_query,
     process_main_prompt,
 )
+from bot.vk import keyboards_vk
 
 
 async def handle_start(user_id: int, platform: str) -> tuple[str, bool]:
@@ -235,6 +240,8 @@ async def handle_mood_list() -> str:
             session, public_only=True, sort_by_popularity=True
         )
 
+    moods = moods[:10]
+
     if len(moods) == 0:
         return f"{settings.emojis.system} Публичных мудов в боте пока не существует!"
 
@@ -242,6 +249,40 @@ async def handle_mood_list() -> str:
     for mood in moods:
         all_moods_str += f"\n• {mood[0].name} (id: {mood[0].id}){' - 👀 '+str(mood[1]) if mood[1] > 0 else ''}"
     return all_moods_str
+
+@overload
+async def handle_mood_page(offset: int, platform: Literal["vk"]) -> str | tuple[str, str]: ...
+@overload
+async def handle_mood_page(offset: int, platform: Literal["tg"]) -> str | tuple[str, InlineKeyboardMarkup]: ...
+
+async def handle_mood_page(offset: int, platform: str) -> str | tuple[str, str | InlineKeyboardMarkup]:
+    async with sessionmaker() as session:
+        moods = await get_all_moods(
+            session, public_only=True, sort_by_popularity=True
+        )
+
+    if len(moods) == 0:
+        return f"{settings.emojis.system} Публичных мудов в боте пока не существует!"
+
+    if offset < 0:
+        offset = 0
+
+    new_moods = moods[offset:offset+15]
+
+    match platform:
+        case "vk":
+            kbd_page_generator = keyboards_vk.mood_page_generator
+        case "tg":
+            kbd_page_generator = keyboards_tg.mood_page_generator
+        case _:
+            raise TypeError(f"Unknown platform passed: {platform}")
+
+    kbd = kbd_page_generator(has_left=(offset > 0), has_right=(len(moods[offset+15:]) > 0), offset=offset)
+
+    all_moods_str = ""
+    for mood in new_moods:
+        all_moods_str += f"\n• {mood[0].name} (id: {mood[0].id}){' - 👀 '+str(mood[1]) if mood[1] > 0 else ''}"
+    return (all_moods_str, kbd)
 
 
 async def mood_exists(user_id: int, mood_id: int) -> str | MoodModel:

@@ -77,14 +77,27 @@ async def settings_callback_handler(cb: CallbackQuery):
 
 
 @dp.message(Text(["/moods", "/муды"]))
-async def list_mood_handler(_: Message):
-    return (await handlers.handle_mood_list())
+async def list_mood_handler(message: Message):
+    result = await handlers.handle_mood_page(offset=0, platform="tg")
+
+    if isinstance(result, str):
+        # No keyboard
+        await message.answer(result)
+    else:
+        # Page keyboard
+        await message.answer(result[0], reply_markup=result[1])
 
 
-@dp.callback_query(CallbackDataEq("change_gpt_mood_info"))
-async def list_mood_callback_handler(cb: CallbackQuery):
-    msg = await handlers.handle_mood_list()
-    await cb.answer(msg)
+@dp.callback_query(CallbackDataMarkup("moods/<offset:int>"))
+async def list_mood_page_callback_handler(cb: CallbackQuery, offset: int):
+    result = await handlers.handle_mood_page(offset=offset, platform="tg")
+
+    if isinstance(result, str):
+        # No keyboard
+        await cb.edit_text(result)
+    else:
+        # Page keyboard
+        await cb.edit_text(result[0], reply_markup=result[1])
 
 
 @dp.message(Markup(["/mood <mood_id:int>", "/муд <mood_id:int>"]))

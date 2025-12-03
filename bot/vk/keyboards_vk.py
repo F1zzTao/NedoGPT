@@ -1,6 +1,5 @@
-from vkbottle import Keyboard
+from vkbottle import Callback, Keyboard, Text
 from vkbottle import KeyboardButtonColor as Color
-from vkbottle import Text
 
 OPEN_SETTINGS_KBD = (
     Keyboard(inline=True)
@@ -13,3 +12,18 @@ SETTINGS_KBD = (
     .row()
     .add(Text("Удалить аккаунт", {"cmd": "delete_account"}), Color.NEGATIVE)
 ).get_json()
+
+
+def mood_page_generator(
+    has_left: bool = False,
+    has_right: bool = False,
+    offset: int = 0
+) -> str:
+    keyboard = Keyboard(inline=True)
+
+    if has_left:
+        keyboard.add(Callback("⬅️", payload={"cmd": "mood_page", "offset": offset-15}))
+    if has_right:
+        keyboard.add(Callback("➡️", payload={"cmd": "mood_page", "offset": offset+15}))
+
+    return keyboard.get_json()

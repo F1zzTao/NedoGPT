@@ -1,6 +1,6 @@
-from vkbottle import Keyboard, Text
+from vkbottle import GroupEventType, Keyboard, Text
 from vkbottle import KeyboardButtonColor as Color
-from vkbottle.bot import BotLabeler
+from vkbottle.bot import BotLabeler, MessageEvent, rules
 from vkbottle.bot import Message as VkMessage
 from vkbottle_types.objects import UsersUserFull
 
@@ -78,8 +78,34 @@ async def open_settings_handler(message: VkMessage):
 
 @labeler.message(text=("!moods", "!муды"))
 @labeler.message(payload={"cmd": "change_gpt_mood_info"})
-async def list_mood_handler(_: VkMessage):
-    return (await handlers.handle_mood_list())
+async def list_mood_handler(message: VkMessage):
+    result = await handlers.handle_mood_page(offset=0, platform="vk")
+
+    if isinstance(result, str):
+        # No keyboard
+        await message.answer(result)
+    else:
+        # Page keyboard
+        await message.answer(result[0], keyboard=result[1])
+
+
+@labeler.raw_event(
+    GroupEventType.MESSAGE_EVENT,
+    MessageEvent,
+    rules.PayloadContainsRule({"cmd": "mood_page"}),
+)
+async def mood_page_handler(event: MessageEvent):
+    payload = event.get_payload_json()
+    offset = payload["offset"]
+
+    result = await handlers.handle_mood_page(offset, platform="vk")
+    if isinstance(result, str):
+        # No keyboard
+        await event.edit_message(result)
+    else:
+        # Page keyboard
+        await event.edit_message(result[0], keyboard=result[1])
+
 
 
 @labeler.message(text="!муд <mood_id:int>")

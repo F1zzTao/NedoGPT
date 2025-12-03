@@ -85,7 +85,7 @@ async def get_all_moods(
 @cached(
     key_builder=(
         lambda session, user_id=None, public_only=False, sort_by_popularity=False: (
-            build_key(user_id, public_only)
+            build_key(user_id, public_only, sort_by_popularity)
         )
     )
 )
@@ -93,7 +93,7 @@ async def get_all_moods(
     session: AsyncSession,
     user_id: int | None = None,
     public_only: bool = False,
-    sort_by_popularity: bool = False
+    sort_by_popularity: bool = False,
 ) -> list[MoodModel] | list[tuple[MoodModel, int]]:
     """Returns all moods from the database."""
     query = select(MoodModel)
