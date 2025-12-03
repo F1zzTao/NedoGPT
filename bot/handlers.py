@@ -5,7 +5,7 @@ from bot.base import Conversation, Message, Prompt, UserInfo
 from bot.core.config import HELP_MSG, OPENROUTER_HEADERS, Model, settings
 from bot.database.database import sessionmaker
 from bot.database.models import MoodModel, UserModel
-from bot.services.generations import add_generation
+from bot.services.generations import add_generation, count_generations
 from bot.services.moods import (
     add_mood,
     get_all_moods,
@@ -231,14 +231,16 @@ async def handle_settings(user_id: int) -> tuple[str, bool]:
 
 async def handle_mood_list() -> str:
     async with sessionmaker() as session:
-        moods = await get_all_moods(session, public_only=True)
+        moods = await get_all_moods(
+            session, public_only=True, sort_by_popularity=True
+        )
 
     if len(moods) == 0:
         return f"{settings.emojis.system} Публичных мудов в боте пока не существует!"
 
-    all_moods_str = f"{settings.emojis.system} Вот все текущие публичные муды:"
+    all_moods_str = f"{settings.emojis.system} Все публичные муды:"
     for mood in moods:
-        all_moods_str += f"\n• {mood.name} (id: {mood.id})"
+        all_moods_str += f"\n• {mood[0].name} (id: {mood[0].id}){' - 👀 '+str(mood[1]) if mood[1] > 0 else ''}"
     return all_moods_str
 
 
@@ -258,8 +260,12 @@ async def handle_mood_info(mood: MoodModel, full_name: str | None = None) -> str
     else:
         mood_by = "пользователя"
 
+    async with sessionmaker() as session:
+        generations = await count_generations(session, mood_id=mood.id)
+
     return (
         f"{settings.emojis.system} Муд от {mood_by} - id: {mood.id}"
+        f"\n👀 | Всего генераций: {generations}"
         f"\n👤 | Имя: {mood.name}"
         f"\n🗒 | Описание: {mood.description or '<Нету>'}"
         f"\n🤖 | Инструкции: {mood.instructions}"

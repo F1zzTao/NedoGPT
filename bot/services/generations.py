@@ -30,11 +30,28 @@ async def add_generation(
     return gen_id
 
 
-@cached(key_builder=lambda session, user_id=None: build_key(user_id))
-async def count_generations(session: AsyncSession, user_id: int | None = None) -> int:
+@cached(
+    key_builder=(
+        lambda session, user_id=None, model=None, mood_id=None: (
+            build_key(user_id, model, mood_id)
+        )
+    )
+)
+async def count_generations(
+    session: AsyncSession,
+    user_id: int | None = None,
+    model: str | None = None,
+    mood_id: int | None = None
+) -> int:
     query = select(func.count(GenerationsModel.id))
     if user_id is not None:
         query = query.filter(GenerationsModel.user_id == user_id)
+
+    if model is not None:
+        query = query.filter(GenerationsModel.model == model)
+
+    if mood_id is not None:
+        query = query.filter(GenerationsModel.mood_id == mood_id)
 
     result = await session.execute(query)
     gen_count = result.scalar_one()

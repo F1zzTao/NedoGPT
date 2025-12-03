@@ -1,9 +1,11 @@
-from sqlalchemy import delete, select, update
+from typing import Literal, overload
+
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.cache.redis import build_key, cached, clear_cache
-from bot.database.models import MoodModel, UserModel
+from bot.database.models import GenerationsModel, MoodModel, UserModel
 
 
 async def add_mood(
@@ -65,10 +67,34 @@ async def add_default_mood(
         return False
 
 
-@cached(key_builder=lambda session, user_id=None, public_only=False: build_key(user_id, public_only))
+@overload
 async def get_all_moods(
-    session: AsyncSession, user_id: int | None = None, public_only: bool = False
-) -> list[MoodModel]:
+    session: AsyncSession,
+    user_id: int | None = None,
+    public_only: bool = False,
+    sort_by_popularity: Literal[False] = False
+) -> list[MoodModel]: ...
+@overload
+async def get_all_moods(
+    session: AsyncSession,
+    user_id: int | None = None,
+    public_only: bool = False,
+    sort_by_popularity: Literal[True] = True
+) -> list[tuple[MoodModel, int]]: ...
+
+@cached(
+    key_builder=(
+        lambda session, user_id=None, public_only=False, sort_by_popularity=False: (
+            build_key(user_id, public_only)
+        )
+    )
+)
+async def get_all_moods(
+    session: AsyncSession,
+    user_id: int | None = None,
+    public_only: bool = False,
+    sort_by_popularity: bool = False
+) -> list[MoodModel] | list[tuple[MoodModel, int]]:
     """Returns all moods from the database."""
     query = select(MoodModel)
 
@@ -77,6 +103,24 @@ async def get_all_moods(
 
     if public_only:
         query = query.filter_by(is_private=False)
+
+    if sort_by_popularity:
+        popularity = func.count(GenerationsModel.id).label("popularity")
+
+        # Select both MoodModel and popularity as a second column
+        query = (
+            select(MoodModel, popularity)
+            .join(
+                GenerationsModel,
+                GenerationsModel.mood_id == MoodModel.id,
+                isouter=True
+            )
+            .group_by(MoodModel.id)
+            .order_by(popularity.desc())
+        )
+
+        result = await session.execute(query)
+        return [(row[0], row[1]) for row in result.all()]
 
     result = await session.execute(query)
 
