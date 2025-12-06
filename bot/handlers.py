@@ -190,9 +190,8 @@ async def handle_ai(
         )
 
     cens_response = censor_result(response).strip()
-    msg_reply = f"{settings.emojis.ai} {cens_response}"
 
-    return msg_reply
+    return cens_response
 
 
 async def handle_settings(user_id: int) -> tuple[str, bool]:

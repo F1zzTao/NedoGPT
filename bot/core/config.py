@@ -102,7 +102,6 @@ class Model(BaseSettings):
 
 class Emojis(BaseSettings):
     system: str
-    ai: str
 
 
 class BotLinks(BaseSettings):

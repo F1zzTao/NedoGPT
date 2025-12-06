@@ -79,7 +79,7 @@ class Prompt:
             if "-"+bot_id == message.user_id:
                 yield {
                     "role": "assistant",
-                    "content": message.render(incl_full_name=False).replace(settings.emojis.ai+' ', ''),
+                    "content": message.render(incl_full_name=False),
                 }
             else:
                 yield {
