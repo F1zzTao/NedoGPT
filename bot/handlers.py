@@ -519,15 +519,22 @@ async def handle_set_model(user_id: int, model_string: str) -> str | None:
         if not (await user_exists(session, user_id)):
             return f"{settings.emojis.system} Для этого нужен аккаунт! Создайте его командой \"!начать\""
 
+        is_admin: bool = False
+        if str(user_id) == settings.VK_ADMIN_ID:
+            is_admin = True
+
+        model_price_prompt: float = 0.0
+        model_price_completed: float = 0.0
         is_custom = False
         if not model_string.isdigit():
             if len(model_string.split("/")) != 2:
                 return
 
             is_free = await is_model_free(model_string)
-            if isinstance(is_free, dict):
-                model_price_prompt = float(is_free["prompt"])*1_000_000
-                model_price_completed = float(is_free["completion"])*1_000_000
+            if isinstance(is_free, dict) and not is_admin:
+                # The model is not free if returned object is a dict
+                model_price_prompt = round(float(is_free["prompt"])*1_000_000, 3)
+                model_price_completed = round(float(is_free["completion"])*1_000_000, 3)
                 return (
                     f"{settings.emojis.system} При выборе кастомной модели можно устанавливать только бесплатные модели,"
                     f" а эта стоит аж ${model_price_prompt}/М токенов + ${model_price_completed}/М токенов!"
@@ -580,6 +587,12 @@ async def handle_set_model(user_id: int, model_string: str) -> str | None:
             " Делать это не рекомендуется, так как качество и работа с русским кастомных моделей"
             " может сильно варьироваться. Используйте её только если вы знаете, что делаете."
         )
+        if model_price_prompt > 0 and model_price_completed > 0:
+            msg += (
+                f"\n\n💸 Выбрана платная модель (${model_price_prompt}/М токенов input"
+                f" + ${model_price_completed}/М токенов output)."
+            )
+
     return msg
 
 
