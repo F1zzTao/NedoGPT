@@ -194,13 +194,24 @@ async def handle_ai(
     return cens_response
 
 
-async def handle_settings(user_id: int) -> tuple[str, bool]:
+async def handle_settings(user_id: int, reply_user_id: int | None = None) -> tuple[str, bool]:
+    admin_invoke = False
+    if str(user_id) == settings.VK_ADMIN_ID and reply_user_id:
+        user_id = reply_user_id
+        admin_invoke = True
+
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
-            return (
-                f"{settings.emojis.system} Для этого нужен аккаунт! Создайте его командой \"!начать\"",
-                False
-            )
+            if admin_invoke:
+                return (
+                    f"{settings.emojis.system} У этого юзера нету аккаунта! Создать он его может командой \"!начать\"",
+                    False
+                )
+            else:
+                return (
+                    f"{settings.emojis.system} Для этого нужен аккаунт! Создайте его командой \"!начать\"",
+                    False
+                )
 
         user_mood = await get_user_mood(session, user_id)
         logger.info(user_mood)
@@ -226,11 +237,15 @@ async def handle_settings(user_id: int) -> tuple[str, bool]:
 
     current_model_string = (f"{user_model.display_name} ({model_name})" if user_model.display_name else model_name)
 
-    return (
-        f"{settings.emojis.system} | Текущий муд: {mood_name} (id: {mood_id})\n"
-        f"🤖 | Текущая модель: {current_model_string}",
-        True
+    msg = ""
+    if admin_invoke:
+        msg += f"{settings.emojis.system} Информация об [id{user_id}|этом] пользователе:\n"
+    msg += (
+        f"🎭 | Текущий муд: {mood_name} (id: {mood_id})\n"
+        f"🤖 | Текущая модель: {current_model_string}"
     )
+
+    return (msg, True)
 
 
 async def handle_mood_list() -> str:

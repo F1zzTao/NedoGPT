@@ -64,9 +64,12 @@ async def ai_handler(message: Message, query: str):
 
 @dp.message(Text(["/settings", "/гптнастройки"]))
 async def settings_handler(message: Message):
-    msg_reply = await handlers.handle_settings(message.from_user.id)
-    kbd = (SETTINGS_KBD if msg_reply[1] else None)
-    await message.answer(msg_reply[0], reply_markup=kbd)
+    reply_message = message.reply_to_message.unwrap_or_none()
+    msg_answer = await handlers.handle_settings(
+        message.from_user.id, (reply_message.from_user.id if reply_message else None)
+    )
+    kbd = (SETTINGS_KBD if msg_answer[1] else None)
+    await message.answer(msg_answer[0], reply_markup=kbd)
 
 
 @dp.callback_query(CallbackDataEq("settings"))

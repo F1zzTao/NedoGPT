@@ -71,9 +71,12 @@ async def ai_txt_handler(message: VkMessage, query: str):
 @labeler.message(text=("!гптнастройки", "!settings", "!настройки"))
 @labeler.message(payload={"cmd": "settings"})
 async def open_settings_handler(message: VkMessage):
-    msg_reply = await handlers.handle_settings(message.from_id)
-    kbd = (SETTINGS_KBD if msg_reply[1] else None)
-    await message.answer(msg_reply[0], keyboard=kbd)
+    reply_message = message.reply_message
+    msg_answer = await handlers.handle_settings(
+        message.from_id, (reply_message.from_id if reply_message else None)
+    )
+    kbd = (SETTINGS_KBD if msg_answer[1] else None)
+    await message.answer(msg_answer[0], keyboard=kbd, disable_mentions=True)
 
 
 @labeler.message(text=("!moods", "!муды"))
