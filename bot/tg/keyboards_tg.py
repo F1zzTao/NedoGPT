@@ -10,7 +10,7 @@ SETTINGS_KBD = (
     InlineKeyboard()
     .add(InlineButton(text="Поменять муд", callback_data="moods/0"))
     .row()
-    .add(InlineButton(text="Удалить аккаунт", callback_data="delete_account"))
+    .add(InlineButton(text="Поменять модель", callback_data="change_model"))
 ).get_markup()
 
 

@@ -183,6 +183,7 @@ async def my_persona_handler(message: VkMessage):
 
 
 @labeler.message(text="!модели")
+@labeler.message(payload={"cmd": "change_model"})
 async def model_list_handler(_: VkMessage):
     return (await handlers.handle_models_list())
 
@@ -203,7 +204,6 @@ async def del_persona_handler(message: VkMessage):
 
 
 @labeler.message(text="!удалить гпт")
-@labeler.message(payload={"cmd": "delete_account"})
 async def del_account_warning_handler(message: VkMessage):
     return (await handlers.handle_del_account_warning(message.from_id))
 

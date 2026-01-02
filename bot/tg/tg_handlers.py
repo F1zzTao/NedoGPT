@@ -189,6 +189,11 @@ async def model_list_handler(_: Message):
     return (await handlers.handle_models_list(DEFAULT_PREFIX))
 
 
+@dp.callback_query(CallbackDataEq("change_model"))
+async def model_list_callback_handler(_: CallbackQuery):
+    return (await handlers.handle_models_list(DEFAULT_PREFIX))
+
+
 @dp.message(Markup(["/model <model_string>", "/модель <model_string>"]))
 async def set_model_handler(message: Message, model_string: str):
     return (await handlers.handle_set_model(message.from_user.id, model_string))
@@ -207,11 +212,6 @@ async def del_persona_handler(message: Message):
 @dp.message(Text(["/deletegpt", "/удалить гпт"]))
 async def del_account_warning_handler(message: Message):
     return (await handlers.handle_del_account_warning(message.from_user.id))
-
-
-@dp.callback_query(CallbackDataEq("delete_account"))
-async def del_account_warning_callback_handler(cb: CallbackQuery):
-    return (await handlers.handle_del_account_warning(cb.from_user.id))
 
 
 @dp.message(Text(["/deletegptsure", "/точно удалить гпт"]))

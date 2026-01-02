@@ -10,7 +10,7 @@ SETTINGS_KBD = (
     Keyboard(inline=True)
     .add(Text("Поменять муд", {"cmd": "change_gpt_mood_info"}))
     .row()
-    .add(Text("Удалить аккаунт", {"cmd": "delete_account"}), Color.NEGATIVE)
+    .add(Text("Поменять модель", {"cmd": "change_model"}), Color.NEGATIVE)
 ).get_json()
 
 
