@@ -551,7 +551,7 @@ async def handle_set_model(user_id: int, model_string: str) -> str | None:
                 model_price_prompt = round(float(is_free["prompt"])*1_000_000, 3)
                 model_price_completed = round(float(is_free["completion"])*1_000_000, 3)
 
-            if not is_admin:
+            if not is_free and not is_admin:
                 return (
                     f"{settings.emojis.system} При выборе кастомной модели можно устанавливать только бесплатные модели,"
                     f" а эта стоит аж ${model_price_prompt}/М токенов + ${model_price_completed}/М токенов!"
