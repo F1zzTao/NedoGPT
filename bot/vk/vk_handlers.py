@@ -99,6 +99,8 @@ async def list_mood_handler(message: VkMessage):
 )
 async def mood_page_handler(event: MessageEvent):
     payload = event.get_payload_json()
+    if payload is None:
+        return
     offset = payload["offset"]
 
     result = await handlers.handle_mood_page(offset, platform="vk")
