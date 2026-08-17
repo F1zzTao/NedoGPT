@@ -2,54 +2,10 @@ import re
 from typing import Literal, overload
 
 import aiohttp
-from vkbottle.bot import Message
-from vkbottle_types.objects import MessagesMessageAttachmentType, PhotosPhotoSizes
 
 from bot import ai_stuff
 from bot.cache.redis import cached
 from bot.core.config import OPENROUTER_HEADERS, Model, settings
-
-
-def pick_size(sizes: list[PhotosPhotoSizes]) -> str | None:
-    sizes_widths = [photo.width for photo in sizes]
-    filtered_sizes = [size for size in sizes_widths if size <= settings.max_image_width]
-
-    if not filtered_sizes:
-        closest_size = min(sizes_widths, key=lambda x: abs(x - settings.max_image_width))
-    else:
-        closest_size = max(filtered_sizes)
-
-    photo_url = ""
-    for photo in sizes:
-        if photo.width == closest_size:
-            photo_url = photo.url
-            break
-
-    return photo_url
-
-
-def pick_img(message: Message) -> str | None:
-    img_url = None
-    sizes = None
-    if (
-        message.attachments and
-        message.attachments[0].type is MessagesMessageAttachmentType.PHOTO
-    ):
-        photo = message.attachments[0].photo
-        if photo:
-            sizes = photo.sizes
-    elif (
-        message.reply_message and
-        message.reply_message.attachments and
-        message.reply_message.attachments[0].type is MessagesMessageAttachmentType.PHOTO
-    ):
-        photo = message.reply_message.attachments[0].photo
-        if photo:
-            sizes = photo.sizes
-
-    if sizes:
-        img_url = pick_size(sizes)
-    return img_url
 
 
 async def process_main_prompt(
@@ -83,7 +39,7 @@ def censor_result(query: str) -> str:
     # Remove links
     query = re.sub(r'\.(?=[^\s])', '. ', query)
 
-    for censor in settings.vk_censor_words:
+    for censor in settings.censor_words:
         query = query.replace(censor, "***")
     return query
 
@@ -96,7 +52,7 @@ def find_model_by_id(models: list[Model], model_id: str) -> Model | None:
 
 @cached(ttl=1800)
 async def get_model_list() -> dict:
-    async with aiohttp.ClientSession(headers=OPENROUTER_HEADERS) as session:
+    async with aiohttp.ClientSession(headers=OPENROUTER_HEADERS) as session:  # noqa: SIM117
         async with session.get(settings.OPENAI_BASE_URL+"/models") as request:
             response = await request.json()
     return response["data"]

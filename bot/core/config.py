@@ -45,13 +45,8 @@ class EnvBaseSettings(BaseSettings):
 
 
 class BotSettings(EnvBaseSettings):
-    # VK
-    VK_API_KEY: str
-    VK_GROUP_ID: str
-    VK_ADMIN_ID: str
-
-    # TG
     TG_API_KEY: str
+    TG_ADMIN_ID: str
 
 
 class OpenAISettings(EnvBaseSettings):
@@ -59,7 +54,7 @@ class OpenAISettings(EnvBaseSettings):
     OPENAI_BASE_URL: str = "https://openrouter.ai/api/v1"
 
 
-class DBSettings(EnvBaseSettings):# 
+class DBSettings(EnvBaseSettings):
     DB_PATH: str = "db.db"
 
     @property
@@ -118,7 +113,7 @@ class ConfigSettings(EnvBaseSettings):
     models: list[Model]
     default_model_id: str
     instruction_template_path: str
-    vk_censor_words: list[str]
+    censor_words: list[str]
     donation_msg_chance: float = Field(ge=0, le=1)
     max_image_width: int
     emojis: Emojis
@@ -135,16 +130,16 @@ settings = Settings()
 
 OPENROUTER_HEADERS = {
     "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
-    "HTTP-Referer": "https://vk.com/public205906217",
+    "HTTP-Referer": "https://t.me/nedogpt_bot",
     "X-Title": "NedoGPT",
 }
 
 # TODO: i18n
 HELP_MSG: str = (
     f"{settings.emojis.system} Вот все популярные команды:"
-    "\n!ai <текст> - отвечает на ваш запрос, используя ваш выбранный муд"
+    "\n/ai <текст> - отвечает на ваш запрос, используя ваш выбранный муд"
     " (по умолчанию используется обычный ассистент)"
-    "\n!муд <имя|описание|инструкции|видимость> [значение] - устанавливает"
+    "\n/муд <имя|описание|инструкции|видимость> [значение] - устанавливает"
     " параметры для вашего муда"
     f"\nВсе остальные команды вы можете найти в репозитории бота: {settings.links.bot_help_link}"
 )
@@ -154,3 +149,4 @@ DONATION_MSG: str = (
     " не зарабатываю с бота. Если вы хотите, чтобы бот продолжал работать - пожалуйста,"
     f" поддержите его здесь: {settings.links.bot_donate_link}"
 )
+TG_BOT_ID: str = settings.TG_API_KEY.split(":")[0]

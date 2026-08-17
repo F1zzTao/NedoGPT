@@ -1,19 +1,16 @@
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+
+#from aiogram.enums import ParseMode
+from aiogram.fsm.storage.base import DefaultKeyBuilder
+from aiogram.fsm.storage.redis import RedisStorage
 from redis.asyncio import ConnectionPool, Redis
-from telegrinder import API as TgAPI
-from telegrinder import Dispatch, Telegrinder, Token
-from vkbottle import API as VkAPI
-from vkbottle.bot import Bot
 
 from bot.core.config import settings
 
-# VK
-vk_api = VkAPI(settings.VK_API_KEY)  # pyright: ignore
-vk_bot = Bot(api=vk_api)
+token = settings.TG_API_KEY
 
-# Telegram
-tg_api = TgAPI(token=Token(settings.TG_API_KEY))  # pyright: ignore
-tg_bot = Telegrinder(tg_api)
-dp = Dispatch()
+bot = Bot(token=token, default=DefaultBotProperties())
 
 redis_client = Redis(
     connection_pool=ConnectionPool(
@@ -23,3 +20,10 @@ redis_client = Redis(
         db=0,
     ),
 )
+
+storage = RedisStorage(
+    redis=redis_client,
+    key_builder=DefaultKeyBuilder(with_bot_id=True),
+)
+
+dp = Dispatcher()
