@@ -76,7 +76,7 @@ class Prompt:
     def render_messages(self, bot_id: str):
         for message in self.convo.messages:
             # `message.user_id` for bots always starts with a `-`
-            if "-"+bot_id == message.user_id:
+            if bot_id == message.user_id:
                 yield {
                     "role": "assistant",
                     "content": message.render(incl_full_name=False),

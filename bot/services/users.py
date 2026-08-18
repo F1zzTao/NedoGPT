@@ -8,12 +8,12 @@ from bot.utils import find_model_by_id, find_model_by_request
 
 
 async def add_user(
-    session: AsyncSession, user_id: int, platform: str
+    session: AsyncSession, user_id: int
 ) -> None:
     """Add a new user to the database."""
     new_user = UserModel(
         id=user_id,
-        platform=platform
+        platform="tg"
     )
 
     session.add(new_user)

@@ -5,16 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Module VK",
+            "name": "Python Debugger",
             "type": "debugpy",
             "request": "launch",
-            "module": "bot.vk"
-        },
-        {
-            "name": "Python Debugger: Module TG",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "bot.tg"
+            "module": "bot"
         }
     ]
 }

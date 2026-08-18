@@ -26,7 +26,7 @@ models:
 default_model_id: "1"
 instruction_template_path: "./instruction_templates"
 
-vk_censor_words: ["onion", "vtope", "vto.pe", "vto pe", "сова никогда не спит"]
+censor_words: ["onion", "vtope", "vto.pe", "vto pe", "сова никогда не спит"]
 
 donation_msg_chance: 0.01
 max_image_width: 750
