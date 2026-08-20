@@ -1,5 +1,5 @@
 from aiogram import Router, types
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 
 from bot.core.config import settings
 from bot.core.loader import dp
@@ -16,6 +16,7 @@ DEFAULT_PREFIX: str = "/"
 router = Router(name="start")
 
 
+@dp.message(Command("начать"))
 @dp.message(CommandStart())
 async def start_handler(message: types.Message):
     if not message.from_user:
