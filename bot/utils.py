@@ -35,15 +35,6 @@ async def moderate_query(query: str) -> str | None:
     query = re.sub(r'\.(?=[^\s])', '. ', query)
 
 
-def censor_result(query: str) -> str:
-    # Remove links
-    query = re.sub(r'\.(?=[^\s])', '. ', query)
-
-    for censor in settings.censor_words:
-        query = query.replace(censor, "***")
-    return query
-
-
 def find_model_by_id(models: list[Model], model_id: str) -> Model | None:
     for model in models:
         if model.id == model_id:

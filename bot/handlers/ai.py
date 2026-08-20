@@ -18,7 +18,6 @@ from bot.services.users import (
     set_user_model,
 )
 from bot.utils import (
-    censor_result,
     find_model_by_id,
     moderate_query,
     process_main_prompt,
@@ -165,6 +164,4 @@ async def ai_handler(message: types.Message, command: CommandObject):
     async with sessionmaker() as session:
         await add_generation(session, response, user.user_id, model_name, user_mood.id)
 
-    cens_response = censor_result(response).strip()
-
-    await wait_msg.edit_text(cens_response)
+    await wait_msg.edit_text(response)

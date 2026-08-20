@@ -113,8 +113,6 @@ class ConfigSettings(EnvBaseSettings):
     models: list[Model]
     default_model_id: str
     instruction_template_path: str
-    censor_words: list[str]
-    donation_msg_chance: float = Field(ge=0, le=1)
     max_image_width: int
     emojis: Emojis
     links: BotLinks
@@ -133,20 +131,4 @@ OPENROUTER_HEADERS = {
     "HTTP-Referer": "https://t.me/nedogpt_bot",
     "X-Title": "NedoGPT",
 }
-
-# TODO: i18n
-HELP_MSG: str = (
-    f"{settings.emojis.system} Вот все популярные команды:"
-    "\n/ai <текст> - отвечает на ваш запрос, используя ваш выбранный муд"
-    " (по умолчанию используется обычный ассистент)"
-    "\n/муд <имя|описание|инструкции|видимость> [значение] - устанавливает"
-    " параметры для вашего муда"
-    f"\nВсе остальные команды вы можете найти в репозитории бота: {settings.links.bot_help_link}"
-)
-DONATION_MSG: str = (
-    f"{settings.emojis.system} На данный момент, бот предоставляет бесплатный доступ к моделям"
-    " OpenRouter без рекламы. Сами модели не всегда бесплатные, при этом я ничего"
-    " не зарабатываю с бота. Если вы хотите, чтобы бот продолжал работать - пожалуйста,"
-    f" поддержите его здесь: {settings.links.bot_donate_link}"
-)
 TG_BOT_ID: str = settings.TG_API_KEY.split(":")[0]
