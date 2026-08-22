@@ -74,7 +74,6 @@ async def list_mood_page_callback_handler(cb: types.CallbackQuery):
         await cb.message.edit_text(
             f"{settings.emojis.system} Публичных мудов в боте пока не существует, вы можете быть первым!"
         )
-        await cb.answer()
         return
 
     offset = max(offset, 0)
@@ -145,43 +144,36 @@ async def set_mood_callback_handler(cb: types.CallbackQuery):
         await cb.answer()
         return
 
-    if not cb.message.from_user:
-        await cb.answer()
-        return
-
     try:
         mood_id: int = int(cb.data.split("/")[1])
     except ValueError:
         raise ValueError("Mood in callback is not an integer")
 
     async with sessionmaker() as session:
-        if not (await user_exists(session, cb.message.from_user.id)):
+        if not (await user_exists(session, cb.from_user.id)):
             await cb.message.edit_text(
                 f'{settings.emojis.system} Для этого нужен аккаунт! Создайте его командой "/начать"'
             )
-            await cb.answer()
             return
 
         custom_mood = await get_mood(session, mood_id)
         if not custom_mood or (
             custom_mood.is_private is True
-            and cb.message.from_user.id != custom_mood.user_id
+            and cb.from_user.id != custom_mood.user_id
         ):
             await cb.message.edit_text(
                 f"{settings.emojis.system} Такого муда не существует!"
             )
-            await cb.answer()
             return
 
         mood_id = custom_mood.id
         mood_name = custom_mood.name
 
-        await set_user_mood(session, cb.message.from_user.id, mood_id)
+        await set_user_mood(session, cb.from_user.id, mood_id)
 
     await cb.message.edit_text(
         f'{settings.emojis.system} Вы успешно выбрали муд "{mood_name}" (id: {mood_id})'
     )
-    await cb.answer()
 
 
 @dp.message(Command(commands=["createmood", "создатьмуд", "новыймуд"]))
@@ -203,18 +195,21 @@ async def create_mood_handler(message: types.Message, command: CommandObject):
 
     async with sessionmaker() as session:
         if not (await user_exists(session, message.from_user.id)):
-            return (
+            await message.answer(
                 f"{settings.emojis.system} Гений, чтобы создать муд,"
                 f' нужно сначала зарегаться командой "/начать".'
             )
+            return
 
         fail_reason = await moderate_query(instr)
         if fail_reason:
-            return fail_reason
+            await message.answer(fail_reason)
+            return
 
         user_moods = await get_all_moods(session, message.from_user.id)
         if len(user_moods) >= 10 and str(message.from_user.id) != settings.TG_ADMIN_ID:
-            return f"{settings.emojis.system} Вы не можете создать больше 10 мудов!"
+            await message.answer(f"{settings.emojis.system} Вы не можете создать больше 10 мудов!")
+            return
 
         # Creating mood
         inserted_id = await add_mood(

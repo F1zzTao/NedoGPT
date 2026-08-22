@@ -59,7 +59,6 @@ async def model_list_callback_handler(cb: types.CallbackQuery):
 
     msg += '\n\nВыбрать модель можно с помощью команды "/модель <её айди>"'
     await cb.message.edit_text(msg)
-    await cb.answer()
 
 
 @dp.message(Command(commands=["model", "модель"]))

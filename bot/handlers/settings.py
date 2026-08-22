@@ -90,18 +90,13 @@ async def settings_callback_handler(cb: types.CallbackQuery):
         await cb.answer()
         return
 
-    if not cb.message.from_user:
-        await cb.answer()
-        return
-
-    user_id = str(cb.message.from_user.id)
+    user_id = str(cb.from_user.id)
 
     async with sessionmaker() as session:
         if not (await user_exists(session, user_id)):
             await cb.message.edit_text(
                 f'{settings.emojis.system} Для этого нужен аккаунт! Создайте его командой "/начать"'
             )
-            await cb.answer()
             return
 
         user_mood = await get_user_mood(session, user_id)
@@ -137,4 +132,3 @@ async def settings_callback_handler(cb: types.CallbackQuery):
     )
 
     await cb.message.edit_text(msg, reply_markup=SETTINGS_KBD)
-    await cb.answer()
